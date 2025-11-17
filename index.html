@@ -80,6 +80,45 @@
                             >
                         </div>
                     </div>
+
+                    <!-- Gênero -->
+                    <div>
+                        <label for="genero" class="block text-sm font-medium text-gray-700 mb-1">Gênero</label>
+                        <select
+                            id="genero"
+                            name="genero"
+                            class="w-full bg-white px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                            required
+                        >
+                            <option value="" disabled selected>Selecione seu gênero</option>
+                            <option value="feminino">Feminino</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Algumas especialidades são específicas de determinados gêneros</p>
+                    </div>
+
+                    <!-- Telefone (WhatsApp) -->
+                    <div>
+                        <label for="telefone" class="block text-sm font-medium text-gray-700 mb-1">Telefone (WhatsApp)</label>
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="tel"
+                                id="telefone"
+                                name="telefone"
+                                placeholder="(81) 98888-8888"
+                                maxlength="15"
+                                class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                                required
+                            >
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Usaremos para confirmar o agendamento via WhatsApp</p>
+                    </div>
                 </div>
             </div>
 
@@ -104,26 +143,6 @@
                             required
                         >
                     </div>
-
-                    <!-- Condições Especiais (Priorização) -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Condições Especiais</label>
-                        <div class="space-y-2">
-                            <label class="flex items-center">
-                                <input type="checkbox" id="gestante" name="gestante" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                <span class="ml-2 text-sm text-gray-700">Gestante</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="checkbox" id="deficiencia" name="deficiencia" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                <span class="ml-2 text-sm text-gray-700">Pessoa com Deficiência</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="checkbox" id="urgente" name="urgente" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                <span class="ml-2 text-sm text-gray-700">Caso Urgente</span>
-                            </label>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">Pacientes com condições especiais têm prioridade na alocação</p>
-                    </div>
                 </div>
             </div>
 
@@ -144,15 +163,109 @@
                                 class="w-full bg-white px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                                 required
                             >
-                                <option value="" disabled selected>Selecione</option>
-                                <option value="cardiologia">Cardiologia</option>
-                                <option value="dermatologia">Dermatologia</option>
-                                <option value="ortopedia">Ortopedia</option>
-                                <option value="pediatria">Pediatria</option>
-                                <option value="ginecologia">Ginecologia</option>
-                                <option value="oftalmologia">Oftalmologia</option>
-                                <option value="psiquiatria">Psiquiatria</option>
-                                <option value="neurologia">Neurologia</option>
+                                <option value="" disabled selected>Selecione a especialidade</option>
+
+                                <!-- Cardiologia -->
+                                <optgroup label="Cardiologia">
+                                    <option value="cardiologia-clinica">Cardiologia Clínica</option>
+                                    <option value="cardiologia-intervencionista">Cardiologia Intervencionista</option>
+                                    <option value="eletrofisiologia-cardiaca">Eletrofisiologia Cardíaca</option>
+                                    <option value="ecocardiografia">Ecocardiografia</option>
+                                </optgroup>
+
+                                <!-- Oncologia -->
+                                <optgroup label="Oncologia">
+                                    <option value="oncologia-clinica">Oncologia Clínica</option>
+                                    <option value="oncologia-cirurgica">Oncologia Cirúrgica</option>
+                                    <option value="radioterapia">Radioterapia</option>
+                                    <option value="hematologia-oncologica">Hematologia Oncológica</option>
+                                    <option value="oncologia-pediatrica">Oncologia Pediátrica</option>
+                                    <option value="mastologia">Mastologia (Câncer de Mama)</option>
+                                </optgroup>
+
+                                <!-- Neurologia -->
+                                <optgroup label="Neurologia">
+                                    <option value="neurologia-geral">Neurologia Geral</option>
+                                    <option value="neurocirurgia">Neurocirurgia</option>
+                                    <option value="neurologia-pediatrica">Neurologia Pediátrica</option>
+                                    <option value="epilepsia">Epilepsia</option>
+                                    <option value="doencas-neuromusculares">Doenças Neuromusculares</option>
+                                    <option value="cefaleia">Cefaleia (Dor de Cabeça)</option>
+                                </optgroup>
+
+                                <!-- Ortopedia -->
+                                <optgroup label="Ortopedia">
+                                    <option value="ortopedia-geral">Ortopedia Geral</option>
+                                    <option value="traumatologia">Traumatologia</option>
+                                    <option value="ortopedia-pediatrica">Ortopedia Pediátrica</option>
+                                    <option value="cirurgia-coluna">Cirurgia da Coluna</option>
+                                    <option value="cirurgia-mao">Cirurgia da Mão</option>
+                                    <option value="medicina-esportiva">Medicina Esportiva</option>
+                                    <option value="artroscopia">Artroscopia</option>
+                                </optgroup>
+
+                                <!-- Pediatria -->
+                                <optgroup label="Pediatria">
+                                    <option value="pediatria-geral">Pediatria Geral</option>
+                                    <option value="neonatologia">Neonatologia</option>
+                                    <option value="pneumologia-pediatrica">Pneumologia Pediátrica</option>
+                                    <option value="gastroenterologia-pediatrica">Gastroenterologia Pediátrica</option>
+                                    <option value="endocrinologia-pediatrica">Endocrinologia Pediátrica</option>
+                                    <option value="cardiologia-pediatrica">Cardiologia Pediátrica</option>
+                                </optgroup>
+
+                                <!-- Ginecologia e Obstetrícia -->
+                                <optgroup label="Ginecologia e Obstetrícia">
+                                    <option value="ginecologia-geral">Ginecologia Geral</option>
+                                    <option value="obstetricia">Obstetrícia</option>
+                                    <option value="reproducao-humana">Reprodução Humana</option>
+                                    <option value="uroginecologia">Uroginecologia</option>
+                                    <option value="ginecologia-oncologica">Ginecologia Oncológica</option>
+                                    <option value="climatério">Climatério (Menopausa)</option>
+                                </optgroup>
+
+                                <!-- Oftalmologia -->
+                                <optgroup label="Oftalmologia">
+                                    <option value="oftalmologia-geral">Oftalmologia Geral</option>
+                                    <option value="retina-vitreo">Retina e Vítreo</option>
+                                    <option value="glaucoma">Glaucoma</option>
+                                    <option value="catarata">Catarata</option>
+                                    <option value="estrabismo">Estrabismo</option>
+                                    <option value="cirurgia-refrativa">Cirurgia Refrativa</option>
+                                </optgroup>
+
+                                <!-- Psiquiatria -->
+                                <optgroup label="Psiquiatria">
+                                    <option value="psiquiatria-adulto">Psiquiatria do Adulto</option>
+                                    <option value="psiquiatria-infantil">Psiquiatria Infantil</option>
+                                    <option value="psiquiatria-geriatrica">Psiquiatria Geriátrica</option>
+                                    <option value="dependencia-quimica">Dependência Química</option>
+                                </optgroup>
+
+                                <!-- Dermatologia -->
+                                <optgroup label="Dermatologia">
+                                    <option value="dermatologia-clinica">Dermatologia Clínica</option>
+                                    <option value="dermatologia-cirurgica">Dermatologia Cirúrgica</option>
+                                    <option value="dermatologia-estetica">Dermatologia Estética</option>
+                                    <option value="hansenologia">Hansenologia</option>
+                                </optgroup>
+
+                                <!-- Outras Especialidades -->
+                                <optgroup label="Outras Especialidades">
+                                    <option value="endocrinologia">Endocrinologia</option>
+                                    <option value="gastroenterologia">Gastroenterologia</option>
+                                    <option value="nefrologia">Nefrologia</option>
+                                    <option value="pneumologia">Pneumologia</option>
+                                    <option value="reumatologia">Reumatologia</option>
+                                    <option value="urologia">Urologia</option>
+                                    <option value="otorrinolaringologia">Otorrinolaringologia</option>
+                                    <option value="cirurgia-geral">Cirurgia Geral</option>
+                                    <option value="anestesiologia">Anestesiologia</option>
+                                    <option value="medicina-intensiva">Medicina Intensiva</option>
+                                    <option value="geriatria">Geriatria</option>
+                                    <option value="infectologia">Infectologia</option>
+                                    <option value="imunologia">Imunologia e Alergia</option>
+                                </optgroup>
                             </select>
                         </div>
 
@@ -165,15 +278,24 @@
                                 class="w-full bg-white px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                                 required
                             >
-                                <option value="" disabled selected>Selecione</option>
-                                <option value="recife">Recife</option>
-                                <option value="jaboatao">Jaboatão dos Guararapes</option>
+                                <option value="" disabled selected>Selecione seu município</option>
+                                <option value="abreu-e-lima">Abreu e Lima</option>
+                                <option value="aracoiaba">Araçoiaba</option>
+                                <option value="cabo-de-santo-agostinho">Cabo de Santo Agostinho</option>
+                                <option value="camaragibe">Camaragibe</option>
+                                <option value="goiana">Goiana</option>
+                                <option value="igarassu">Igarassu</option>
+                                <option value="ipojuca">Ipojuca</option>
+                                <option value="itamaraca">Itamaracá</option>
+                                <option value="itapissuma">Itapissuma</option>
+                                <option value="jaboatao-dos-guararapes">Jaboatão dos Guararapes</option>
+                                <option value="moreno">Moreno</option>
                                 <option value="olinda">Olinda</option>
-                                <option value="caruaru">Caruaru</option>
                                 <option value="paulista">Paulista</option>
-                                <option value="petrolina">Petrolina</option>
-                                <option value="cabo">Cabo de Santo Agostinho</option>
+                                <option value="recife">Recife</option>
+                                <option value="sao-lourenco-da-mata">São Lourenço da Mata</option>
                             </select>
+                            <p class="text-xs text-gray-500 mt-1">Região Metropolitana do Recife (RMR)</p>
                         </div>
                     </div>
 
@@ -206,10 +328,84 @@
                     <span class="bg-blue-600 text-white rounded-full h-6 w-6 text-sm flex items-center justify-center mr-3">4</span>
                     Privacidade e Consentimento
                 </h2>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                    <h3 class="text-base font-bold text-blue-800">Uso de Dados para Otimização da Consulta</h3>
-                    <p class="text-sm text-blue-700">Para agilizar seu atendimento, nosso sistema utiliza seus dados de endereço para encontrar o local de consulta mais próximo e conveniente, conforme a Lei Geral de Proteção de Dados (LGPD).</p>
-                    <div class="space-y-2 pt-2">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 space-y-4">
+                    <div>
+                        <h3 class="text-base font-bold text-blue-900 mb-2 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                            Como Seus Dados Serão Utilizados
+                        </h3>
+                        <p class="text-sm text-blue-800 leading-relaxed">
+                            Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018),
+                            informamos como seus dados pessoais serão coletados e utilizados:
+                        </p>
+                    </div>
+
+                    <div class="bg-white rounded-lg p-4 space-y-3 border border-blue-200">
+                        <h4 class="font-bold text-gray-900 text-sm mb-3">Dados Coletados e Finalidades:</h4>
+
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Nome completo e CPF:</strong> Identificação do paciente no sistema de saúde e confirmação de cadastro único</span>
+                            </div>
+
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Gênero:</strong> Adequação do atendimento médico e acesso a especialidades específicas (ex: ginecologia, urologia)</span>
+                            </div>
+
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Telefone (WhatsApp):</strong> Confirmação do agendamento, envio de lembretes e comunicação oficial sobre a consulta</span>
+                            </div>
+
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Idade:</strong> Adequação do atendimento médico de acordo com a faixa etária</span>
+                            </div>
+
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Especialidade médica:</strong> Alocação correta do profissional e unidade de saúde adequada</span>
+                            </div>
+
+                            <div class="flex items-start">
+                                <svg class="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-gray-700"><strong>Município e endereço/CEP:</strong> Otimização de rota, cálculo de distância e custos de transporte, recomendação da unidade mais próxima e acessível</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-300 rounded-lg p-3">
+                        <h4 class="font-bold text-amber-900 text-sm mb-2 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                            Seus Direitos
+                        </h4>
+                        <p class="text-xs text-amber-900">
+                            Você tem direito de acessar, corrigir, excluir seus dados, revogar o consentimento ou solicitar a portabilidade
+                            dos dados a qualquer momento. Para exercer esses direitos, entre em contato com a Ouvidoria da Secretaria de Saúde.
+                        </p>
+                    </div>
+
+                    <div class="space-y-3 pt-2">
+                        <p class="text-xs text-blue-800 font-medium">Para prosseguir com o agendamento, é necessário autorizar o uso dos seus dados:</p>
+
                         <div class="flex items-start">
                             <input
                                 id="consentimento-sim"
@@ -219,8 +415,8 @@
                                 checked
                                 required
                             >
-                            <label for="consentimento-sim" class="ml-2 block text-sm text-gray-800">
-                                Eu concordo em compartilhar minha localização para otimizar o agendamento.
+                            <label for="consentimento-sim" class="ml-2 block text-sm text-gray-900 font-medium">
+                                Autorizo o uso dos meus dados conforme descrito acima para otimizar meu agendamento
                             </label>
                         </div>
                         <div class="flex items-start">
@@ -230,8 +426,8 @@
                                 type="radio"
                                 class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 mt-0.5"
                             >
-                            <label for="consentimento-nao" class="ml-2 block text-sm text-gray-800">
-                                Prefiro não compartilhar (o agendamento pode ser mais distante).
+                            <label for="consentimento-nao" class="ml-2 block text-sm text-gray-700">
+                                Não autorizo o uso da localização (o sistema indicará opções sem considerar proximidade)
                             </label>
                         </div>
                     </div>

@@ -49,6 +49,14 @@ const Utils = {
       .replace(/(-\d{2})\d+?$/, '$1');
   },
 
+  mascaraTelefone(value) {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .replace(/(-\d{4})\d+?$/, '$1');
+  },
+
   mascaraCEP(value) {
     return value
       .replace(/\D/g, '')
@@ -102,6 +110,8 @@ class FormValidator {
     this.inputs = {
       nome: document.getElementById('nome'),
       documento: document.getElementById('documento'),
+      genero: document.getElementById('genero'),
+      telefone: document.getElementById('telefone'),
       especialidade: document.getElementById('especialidade'),
       municipio: document.getElementById('municipio'),
       endereco: document.getElementById('endereco'),
@@ -113,6 +123,11 @@ class FormValidator {
     // Validação em tempo real
     this.inputs.nome.addEventListener('blur', () => this.validateNome());
     this.inputs.documento.addEventListener('blur', () => this.validateCPF());
+    this.inputs.genero.addEventListener('change', () => {
+      this.validateGenero();
+      this.filtrarEspecialidadesPorGenero();
+    });
+    this.inputs.telefone.addEventListener('blur', () => this.validateTelefone());
     this.inputs.especialidade.addEventListener('change', () => this.validateEspecialidade());
     this.inputs.municipio.addEventListener('change', () => this.validateMunicipio());
     this.inputs.endereco.addEventListener('blur', () => this.validateEndereco());
@@ -120,6 +135,10 @@ class FormValidator {
     // Máscaras
     this.inputs.documento.addEventListener('input', (e) => {
       e.target.value = Utils.mascaraCPF(e.target.value);
+    });
+
+    this.inputs.telefone.addEventListener('input', (e) => {
+      e.target.value = Utils.mascaraTelefone(e.target.value);
     });
 
     this.inputs.endereco.addEventListener('input', (e) => {
@@ -131,6 +150,59 @@ class FormValidator {
 
     // Submit do formulário
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+  }
+
+  filtrarEspecialidadesPorGenero() {
+    const genero = this.inputs.genero.value;
+    const especialidadeSelect = this.inputs.especialidade;
+    const options = especialidadeSelect.querySelectorAll('option');
+
+    // Especialidades específicas por gênero
+    const especialidadesFemininas = [
+      'ginecologia-geral', 'obstetricia', 'reproducao-humana',
+      'uroginecologia', 'ginecologia-oncologica', 'climaterio'
+    ];
+
+    const especialidadesMasculinas = [
+      'urologia'
+    ];
+
+    options.forEach(option => {
+      const value = option.value;
+
+      // Não desabilitar a opção padrão
+      if (!value) {
+        option.disabled = false;
+        return;
+      }
+
+      // Regras de filtro
+      if (genero === 'masculino' && especialidadesFemininas.includes(value)) {
+        option.disabled = true;
+        option.style.display = 'none';
+      } else if (genero === 'feminino' && especialidadesMasculinas.includes(value)) {
+        // Urologia pode atender ambos, então não desabilitar
+        option.disabled = false;
+        option.style.display = '';
+      } else if (genero === 'outro') {
+        // Para "outro", mostrar todas exceto ginecologia/obstetrícia
+        if (especialidadesFemininas.includes(value)) {
+          option.disabled = true;
+          option.style.display = 'none';
+        } else {
+          option.disabled = false;
+          option.style.display = '';
+        }
+      } else {
+        option.disabled = false;
+        option.style.display = '';
+      }
+    });
+
+    // Resetar seleção se a especialidade atual foi desabilitada
+    if (especialidadeSelect.value && especialidadeSelect.selectedOptions[0]?.disabled) {
+      especialidadeSelect.value = '';
+    }
   }
 
   validateNome() {
@@ -194,6 +266,36 @@ class FormValidator {
     }
 
     this.setSuccess('municipio');
+    return true;
+  }
+
+  validateGenero() {
+    const genero = this.inputs.genero.value;
+
+    if (!genero) {
+      this.setError('genero', 'Selecione um gênero');
+      return false;
+    }
+
+    this.setSuccess('genero');
+    return true;
+  }
+
+  validateTelefone() {
+    const telefone = this.inputs.telefone.value;
+
+    if (!telefone) {
+      this.setError('telefone', 'Telefone é obrigatório');
+      return false;
+    }
+
+    const numeros = telefone.replace(/\D/g, '');
+    if (numeros.length < 10 || numeros.length > 11) {
+      this.setError('telefone', 'Telefone inválido');
+      return false;
+    }
+
+    this.setSuccess('telefone');
     return true;
   }
 
@@ -268,12 +370,14 @@ class FormValidator {
   validateAll() {
     const isNomeValid = this.validateNome();
     const isCPFValid = this.validateCPF();
+    const isGeneroValid = this.validateGenero();
+    const isTelefoneValid = this.validateTelefone();
     const isEspecialidadeValid = this.validateEspecialidade();
     const isMunicipioValid = this.validateMunicipio();
     const isEnderecoValid = this.validateEndereco();
 
-    return isNomeValid && isCPFValid && isEspecialidadeValid &&
-           isMunicipioValid && isEnderecoValid;
+    return isNomeValid && isCPFValid && isGeneroValid && isTelefoneValid &&
+           isEspecialidadeValid && isMunicipioValid && isEnderecoValid;
   }
 
   async handleSubmit(event) {
@@ -415,20 +519,31 @@ class FormValidator {
       id: 'pac-' + Date.now(),
       nome: formData.nome,
       cpf: formData.cpf,
+      genero: formData.genero,
+      telefone: formData.telefone,
       endereco: formData.endereco,
       municipioOrigem: formData.municipio,
       especialidade: formData.especialidade,
-      idade: formData.idade || 30,
-      gestante: formData.gestante || false,
-      urgente: formData.urgente || false,
-      deficiencia: formData.deficiencia || false
+      idade: formData.idade || 30
     };
   }
 
   // Mostrar resultado da otimização
   mostrarResultado(resultado) {
+    // Buscar dados do formulário para garantir que temos todas as informações
+    const formData = this.getFormData();
+    const pacienteCompleto = this.formatarPaciente(formData);
+
+    // Garantir que os dados do paciente estão incluídos
+    const dadosCompletos = {
+      ...resultado,
+      paciente: pacienteCompleto
+    };
+
+    console.log('Salvando dados completos:', dadosCompletos);
+
     // Armazenar no localStorage para exibir na próxima página
-    localStorage.setItem('resultadoAgendamento', JSON.stringify(resultado));
+    localStorage.setItem('resultadoAgendamento', JSON.stringify(dadosCompletos));
 
     // Redirecionar
     window.location.href = 'resultado.html';
@@ -441,10 +556,9 @@ class FormValidator {
     return {
       nome: this.inputs.nome.value.trim(),
       cpf: this.inputs.documento.value,
+      genero: this.inputs.genero.value,
+      telefone: this.inputs.telefone.value,
       idade: parseInt(document.getElementById('idade')?.value || 30),
-      gestante: document.getElementById('gestante')?.checked || false,
-      deficiencia: document.getElementById('deficiencia')?.checked || false,
-      urgente: document.getElementById('urgente')?.checked || false,
       especialidade: this.inputs.especialidade.value,
       municipio: this.inputs.municipio.value,
       endereco: this.inputs.endereco.value.trim(),

@@ -68,6 +68,15 @@ function preencherDadosPaciente(resultado) {
   const container = document.getElementById('dados-paciente');
   const paciente = resultado.paciente || resultado.melhorOpcao?.paciente || {};
 
+  const formatarGenero = (genero) => {
+    const generos = {
+      'feminino': 'Feminino',
+      'masculino': 'Masculino',
+      'outro': 'Outro'
+    };
+    return generos[genero] || 'Não informado';
+  };
+
   const html = `
     <div class="space-y-2 text-sm">
       <div class="flex justify-between py-2 border-b border-gray-100">
@@ -79,12 +88,28 @@ function preencherDadosPaciente(resultado) {
         <span class="font-semibold text-gray-900">${paciente.cpf || 'Não informado'}</span>
       </div>
       <div class="flex justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-600">Gênero</span>
+        <span class="font-semibold text-gray-900">${formatarGenero(paciente.genero)}</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-600">Idade</span>
+        <span class="font-semibold text-gray-900">${paciente.idade || 'Não informado'} anos</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-600">Telefone</span>
+        <span class="font-semibold text-gray-900">${paciente.telefone || 'Não informado'}</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-gray-100">
         <span class="text-gray-600">Município</span>
         <span class="font-semibold text-gray-900 capitalize">${paciente.municipioOrigem || 'Não informado'}</span>
       </div>
       <div class="flex justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-600">Endereço</span>
+        <span class="font-semibold text-gray-900 text-right">${paciente.endereco || 'Não informado'}</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-gray-100">
         <span class="text-gray-600">Especialidade</span>
-        <span class="font-semibold text-gray-900 capitalize">${paciente.especialidade || 'Não informado'}</span>
+        <span class="font-semibold text-gray-900 capitalize">${paciente.especialidade?.replace(/-/g, ' ') || 'Não informado'}</span>
       </div>
       ${paciente.prioridade ? `
       <div class="mt-3 bg-blue-50 rounded-lg p-3 border border-blue-200">
@@ -102,6 +127,14 @@ function preencherMelhorOpcao(melhorOpcao) {
   const container = document.getElementById('melhor-opcao');
   const detalhes = melhorOpcao.detalhes || {};
   const especialista = melhorOpcao.especialista || {};
+
+  // Gerar razões para recomendação
+  const razoes = [];
+  if (detalhes.distancia < 10) razoes.push('Menor distância');
+  if (detalhes.tempoEspera < 7) razoes.push('Menor tempo de espera');
+  if (detalhes.custo < 20) razoes.push('Menor custo de transporte');
+  if (detalhes.numeroTransferencias === 0) razoes.push('Sem transferências');
+  if (razoes.length === 0) razoes.push('Melhor equilíbrio entre os critérios');
 
   const html = `
     <div class="space-y-4">
@@ -140,6 +173,25 @@ function preencherMelhorOpcao(melhorOpcao) {
             <span class="font-semibold">${detalhes.numeroTransferencias || 0} embarque(s)</span>
           </div>
         </div>
+      </div>
+
+      <div class="bg-white/10 backdrop-blur rounded-xl p-4 mt-4 border border-white/20">
+        <h4 class="font-bold text-sm mb-2 flex items-center">
+          <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+          </svg>
+          Por que esta é a recomendação:
+        </h4>
+        <ul class="space-y-1 text-sm">
+          ${razoes.map(razao => `
+            <li class="flex items-start">
+              <svg class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              <span>${razao}</span>
+            </li>
+          `).join('')}
+        </ul>
       </div>
     </div>
   `;
@@ -222,37 +274,143 @@ function preencherAlternativas(alternativas) {
   const html = alternativas.slice(0, 3).map((alt, index) => {
     const especialista = alt.especialista || {};
     const detalhes = alt.detalhes || {};
+    const pros = alt.pros || [];
+    const contras = alt.contras || [];
+
+    // Gerar prós e contras automaticamente se não existirem
+    const prosGerados = pros.length > 0 ? pros : gerarPros(detalhes, index);
+    const contrasGerados = contras.length > 0 ? contras : gerarContras(detalhes, index);
 
     return `
-      <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 hover:border-blue-400 transition">
-        <div class="flex justify-between items-start mb-3">
+      <div class="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-blue-400 transition shadow-sm" id="alternativa-${index}">
+        <div class="flex justify-between items-start mb-4">
           <div class="flex-1">
-            <h4 class="font-bold text-gray-900">${especialista.municipio || 'Local não especificado'}</h4>
+            <h4 class="font-bold text-gray-900 text-lg">${especialista.municipio || 'Local não especificado'}</h4>
             <p class="text-sm text-gray-600">${especialista.unidade || 'Unidade não especificada'}</p>
           </div>
-          <span class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">
+          <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
             Opção ${index + 2}
           </span>
         </div>
-        <div class="grid grid-cols-3 gap-3 text-center text-sm">
+
+        <div class="grid grid-cols-3 gap-3 text-center text-sm mb-4 bg-gray-50 p-3 rounded-lg">
           <div>
-            <p class="text-gray-500 text-xs">Distância</p>
+            <p class="text-gray-500 text-xs mb-1">Distância</p>
             <p class="font-bold text-gray-900">${detalhes.distancia?.toFixed(1) || 'N/A'} km</p>
           </div>
           <div>
-            <p class="text-gray-500 text-xs">Espera</p>
+            <p class="text-gray-500 text-xs mb-1">Espera</p>
             <p class="font-bold text-gray-900">${detalhes.tempoEspera || 'N/A'} dias</p>
           </div>
           <div>
-            <p class="text-gray-500 text-xs">Custo</p>
+            <p class="text-gray-500 text-xs mb-1">Custo</p>
             <p class="font-bold text-gray-900">R$ ${detalhes.custo?.toFixed(2) || '0.00'}</p>
           </div>
         </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-4">
+          <!-- Prós -->
+          <div class="bg-green-50 rounded-lg p-3 border border-green-200">
+            <h5 class="font-bold text-green-900 text-xs mb-2 flex items-center">
+              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              VANTAGENS
+            </h5>
+            <ul class="space-y-1">
+              ${prosGerados.map(pro => `
+                <li class="text-xs text-green-800 flex items-start">
+                  <span class="mr-1">•</span>
+                  <span>${pro}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+
+          <!-- Contras -->
+          <div class="bg-red-50 rounded-lg p-3 border border-red-200">
+            <h5 class="font-bold text-red-900 text-xs mb-2 flex items-center">
+              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+              </svg>
+              DESVANTAGENS
+            </h5>
+            <ul class="space-y-1">
+              ${contrasGerados.map(contra => `
+                <li class="text-xs text-red-800 flex items-start">
+                  <span class="mr-1">•</span>
+                  <span>${contra}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        </div>
+
+        <!-- Botão de Seleção -->
+        <button onclick="selecionarAlternativa(${index}, '${especialista.municipio}', '${especialista.unidade}')"
+                class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Selecionar Esta Opção
+        </button>
       </div>
     `;
   }).join('');
 
   container.innerHTML = html;
+}
+
+function gerarPros(detalhes, index) {
+  const pros = [];
+
+  if (detalhes.distancia < 10) {
+    pros.push('Localização próxima ao paciente');
+  }
+
+  if (detalhes.tempoEspera < 7) {
+    pros.push('Tempo de espera reduzido');
+  }
+
+  if (detalhes.custo < 20) {
+    pros.push('Baixo custo de transporte');
+  }
+
+  if (detalhes.numeroTransferencias === 0) {
+    pros.push('Acesso direto sem transferências');
+  }
+
+  if (pros.length === 0) {
+    pros.push('Opção viável para atendimento');
+  }
+
+  return pros;
+}
+
+function gerarContras(detalhes, index) {
+  const contras = [];
+
+  if (detalhes.distancia > 15) {
+    contras.push('Distância maior que a recomendada');
+  }
+
+  if (detalhes.tempoEspera > 10) {
+    contras.push('Tempo de espera mais longo');
+  }
+
+  if (detalhes.custo > 30) {
+    contras.push('Custo de transporte elevado');
+  }
+
+  if (detalhes.numeroTransferencias > 1) {
+    contras.push(`Requer ${detalhes.numeroTransferencias} transferências`);
+  }
+
+  if (contras.length === 0) {
+    contras.push('Não é a opção prioritária do sistema');
+  }
+
+  return contras;
 }
 
 function carregarGoogleMaps() {
@@ -357,6 +515,113 @@ function mostrarErro(mensagem) {
       </div>
     </div>
   `;
+}
+
+// Variável global para armazenar a opção selecionada
+let opcaoSelecionadaGlobal = null;
+
+function selecionarAlternativa(index, municipio, unidade) {
+  // Remover seleção anterior
+  document.querySelectorAll('[id^="alternativa-"]').forEach(el => {
+    el.classList.remove('border-green-600', 'bg-green-50');
+    el.classList.add('border-gray-200');
+  });
+
+  // Adicionar seleção à nova opção
+  const alternativa = document.getElementById(`alternativa-${index}`);
+  if (alternativa) {
+    alternativa.classList.remove('border-gray-200');
+    alternativa.classList.add('border-green-600', 'bg-green-50');
+  }
+
+  // Armazenar opção selecionada
+  opcaoSelecionadaGlobal = {
+    tipo: 'alternativa',
+    index: index,
+    municipio: municipio,
+    unidade: unidade
+  };
+
+  // Mostrar feedback visual
+  const feedbackDiv = document.getElementById('opcao-selecionada');
+  const textoDiv = document.getElementById('texto-opcao-selecionada');
+  if (feedbackDiv && textoDiv) {
+    textoDiv.textContent = `Opção ${index + 2}: ${municipio} - ${unidade}`;
+    feedbackDiv.classList.remove('hidden');
+  }
+
+  // Scroll suave para a seção de ações
+  document.querySelector('[id="opcao-selecionada"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function confirmarRecomendacao() {
+  const resultado = JSON.parse(localStorage.getItem('resultadoAgendamento') || '{}');
+  const paciente = resultado.paciente || {};
+
+  let opcaoFinal;
+
+  if (opcaoSelecionadaGlobal && opcaoSelecionadaGlobal.tipo === 'alternativa') {
+    opcaoFinal = resultado.alternativas[opcaoSelecionadaGlobal.index];
+  } else {
+    opcaoFinal = resultado.melhorOpcao;
+  }
+
+  const especialista = opcaoFinal?.especialista || {};
+
+  const mensagem = `✅ AGENDAMENTO CONFIRMADO\n\n` +
+    `Paciente: ${paciente.nome || 'Não informado'}\n` +
+    `CPF: ${paciente.cpf || 'Não informado'}\n` +
+    `Telefone: ${paciente.telefone || 'Não informado'}\n\n` +
+    `📍 Local: ${especialista.municipio || 'Não informado'}\n` +
+    `🏥 Unidade: ${especialista.unidade || 'Não informado'}\n\n` +
+    `Agendamento realizado em: ${new Date().toLocaleString('pt-BR')}`;
+
+  alert(mensagem);
+
+  // Opcionalmente, limpar localStorage e redirecionar
+  if (confirm('Deseja fazer um novo agendamento?')) {
+    localStorage.removeItem('resultadoAgendamento');
+    window.location.href = 'index.html';
+  }
+}
+
+function enviarWhatsApp() {
+  const resultado = JSON.parse(localStorage.getItem('resultadoAgendamento') || '{}');
+  const paciente = resultado.paciente || {};
+
+  let opcaoFinal;
+
+  if (opcaoSelecionadaGlobal && opcaoSelecionadaGlobal.tipo === 'alternativa') {
+    opcaoFinal = resultado.alternativas[opcaoSelecionadaGlobal.index];
+  } else {
+    opcaoFinal = resultado.melhorOpcao;
+  }
+
+  const especialista = opcaoFinal?.especialista || {};
+  const detalhes = opcaoFinal?.detalhes || {};
+
+  // Extrair apenas números do telefone
+  const telefone = (paciente.telefone || '').replace(/\D/g, '');
+
+  if (!telefone || telefone.length < 10) {
+    alert('Telefone do paciente inválido ou não informado');
+    return;
+  }
+
+  const mensagem = `Olá *${paciente.nome}*! 👋\n\n` +
+    `Seu agendamento foi processado pelo Sistema de Saúde de PE.\n\n` +
+    `📍 *Local recomendado:*\n` +
+    `${especialista.municipio} - ${especialista.unidade}\n\n` +
+    `📊 *Informações:*\n` +
+    `• Distância: ${detalhes.distancia?.toFixed(1) || 'N/A'} km\n` +
+    `• Tempo de espera: ${detalhes.tempoEspera || 'N/A'} dias\n` +
+    `• Custo estimado de transporte: R$ ${detalhes.custo?.toFixed(2) || '0.00'}\n\n` +
+    `Em breve entraremos em contato para confirmar o agendamento.`;
+
+  const mensagemCodificada = encodeURIComponent(mensagem);
+  const urlWhatsApp = `https://wa.me/55${telefone}?text=${mensagemCodificada}`;
+
+  window.open(urlWhatsApp, '_blank');
 }
 
 function compartilharResultado() {
