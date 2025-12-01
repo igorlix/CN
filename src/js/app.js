@@ -1,85 +1,46 @@
 // Aplicação de Agendamento de Consulta
 // Arquivo principal com validações e lógica do formulário
 
-// Configuração e constantes
-const CONFIG = {
-  API_ENDPOINT: '/api/agendamento', // Ajustar conforme necessário
-  TOAST_DURATION: 5000,
-  CPF_REGEX: /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
-  CEP_REGEX: /^\d{5}-?\d{3}$/
-};
-
 // Utilitários
 const Utils = {
-  // Validação de CPF
   validarCPF(cpf) {
     cpf = cpf.replace(/[^\d]/g, '');
-
-    if (cpf.length !== 11) return false;
-    if (/^(\d)\1+$/.test(cpf)) return false;
-
-    let soma = 0;
-    let resto;
-
-    for (let i = 1; i <= 9; i++) {
-      soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
-    }
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+    let soma = 0, resto;
+    for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
     resto = (soma * 10) % 11;
     if (resto === 10 || resto === 11) resto = 0;
     if (resto !== parseInt(cpf.substring(9, 10))) return false;
-
     soma = 0;
-    for (let i = 1; i <= 10; i++) {
-      soma += parseInt(cpf.substring(i - 1, i)) * (12 - i);
-    }
+    for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i - 1, i)) * (12 - i);
     resto = (soma * 10) % 11;
     if (resto === 10 || resto === 11) resto = 0;
     if (resto !== parseInt(cpf.substring(10, 11))) return false;
-
     return true;
   },
 
-  // Máscaras de formatação
   mascaraCPF(value) {
-    return value
-      .replace(/\D/g, '')
+    return value.replace(/\D/g, '')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1,2})/, '$1-$2')
       .replace(/(-\d{2})\d+?$/, '$1');
   },
 
-  mascaraCEP(value) {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{5})(\d)/, '$1-$2')
-      .replace(/(-\d{3})\d+?$/, '$1');
-  },
-
-  // Toast notification
   showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
-
     toast.className = `toast toast-${type}`;
     toastMessage.textContent = message;
     toast.classList.add('show');
-
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, CONFIG.TOAST_DURATION);
+    setTimeout(() => toast.classList.remove('show'), APP_CONFIG.TOAST_DURATION);
   },
 
-  // Buscar CEP via API
   async buscarCEP(cep) {
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
-
-      if (data.erro) {
-        throw new Error('CEP não encontrado');
-      }
-
+      if (data.erro) throw new Error('CEP não encontrado');
       return data;
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
@@ -88,20 +49,33 @@ const Utils = {
   }
 };
 
-// Validação de Formulário
+// Validação de Formulário e Lógica de Negócio
 class FormValidator {
   constructor(formId) {
     this.form = document.getElementById(formId);
     this.inputs = {};
     this.errors = {};
+    
+    // Lista de especialidades não médicas para agrupamento
+    this.naoMedicas = new Set([
+      'Nutrição', 'Psicologia', 'Fisioterapia', 'Fonoaudiologia',
+      'Terapia Ocupacional', 'Enfermagem', 'Serviço Social', 'Farmácia',
+      'Estomaterapia', 'Educação Física', 'Odontologia', 'Psicopedagogia'
+    ]);
+
     this.initializeInputs();
     this.setupEventListeners();
+
+    // Estado inicial: Especialidade bloqueada
+    this.inputs.especialidade.disabled = true;
   }
 
   initializeInputs() {
     this.inputs = {
       nome: document.getElementById('nome'),
       documento: document.getElementById('documento'),
+      sexo: document.getElementById('sexo'),   // Novo
+      idade: document.getElementById('idade'), // Novo
       especialidade: document.getElementById('especialidade'),
       municipio: document.getElementById('municipio'),
       endereco: document.getElementById('endereco'),
@@ -110,328 +84,242 @@ class FormValidator {
   }
 
   setupEventListeners() {
-    // Validação em tempo real
+    // Validação básica
     this.inputs.nome.addEventListener('blur', () => this.validateNome());
     this.inputs.documento.addEventListener('blur', () => this.validateCPF());
-    this.inputs.especialidade.addEventListener('change', () => this.validateEspecialidade());
-    this.inputs.municipio.addEventListener('change', () => this.validateMunicipio());
-    this.inputs.endereco.addEventListener('blur', () => this.validateEndereco());
-
+    
     // Máscaras
     this.inputs.documento.addEventListener('input', (e) => {
       e.target.value = Utils.mascaraCPF(e.target.value);
     });
 
+    // Endereço Automático
     this.inputs.endereco.addEventListener('input', (e) => {
       const value = e.target.value.replace(/\D/g, '');
-      if (value.length === 8) {
-        this.buscarCEPAutomatico(value);
-      }
+      if (value.length === 8) this.buscarCEPAutomatico(value);
     });
 
-    // Submit do formulário
+    // --- LOGICA DE FILTRO DE ESPECIALIDADE ---
+    // Sempre que Sexo ou Idade mudar, atualiza a lista
+    this.inputs.sexo.addEventListener('change', () => this.atualizarListaEspecialidades());
+    this.inputs.idade.addEventListener('input', () => this.atualizarListaEspecialidades());
+
     this.form.addEventListener('submit', (e) => this.handleSubmit(e));
   }
 
-  validateNome() {
-    const nome = this.inputs.nome.value.trim();
-    const feedback = this.inputs.nome.nextElementSibling;
+  // Lógica principal de filtro com AGRUPAMENTO
+  atualizarListaEspecialidades() {
+    const sexo = this.inputs.sexo.value;
+    const idade = parseInt(this.inputs.idade.value);
+    const select = this.inputs.especialidade;
 
-    if (!nome) {
-      this.setError('nome', 'Nome é obrigatório');
+    // Se faltar dados, bloqueia e avisa
+    if (!sexo || isNaN(idade)) {
+      select.disabled = true;
+      select.innerHTML = '<option value="" disabled selected>Preencha sexo e idade primeiro</option>';
+      return;
+    }
+
+    // Libera o campo
+    select.disabled = false;
+    select.innerHTML = '<option value="" disabled selected>Selecione a especialidade</option>';
+
+    // 1. Pega todas as especialidades únicas de todas as UPAEs
+    const todasEspecialidades = new Set();
+    APP_CONFIG.UPAES.forEach(upae => {
+      upae.especialidades.forEach(esp => todasEspecialidades.add(esp));
+    });
+
+    // 2. Ordena alfabeticamente
+    const listaOrdenada = Array.from(todasEspecialidades).sort();
+
+    // 3. Cria os grupos (optgroup)
+    const grupoMedicas = document.createElement('optgroup');
+    grupoMedicas.label = "Especialidades Médicas";
+
+    const grupoNaoMedicas = document.createElement('optgroup');
+    grupoNaoMedicas.label = "Equipe Multidisciplinar";
+
+    let countMedicas = 0;
+    let countNaoMedicas = 0;
+
+    // 4. Aplica as regras de negócio e distribui nos grupos
+    listaOrdenada.forEach(esp => {
+      if (this.isEspecialidadePermitida(esp, sexo, idade)) {
+        const option = document.createElement('option');
+        option.value = esp;
+        option.textContent = esp;
+
+        if (this.naoMedicas.has(esp)) {
+          grupoNaoMedicas.appendChild(option);
+          countNaoMedicas++;
+        } else {
+          grupoMedicas.appendChild(option);
+          countMedicas++;
+        }
+      }
+    });
+
+    // 5. Adiciona os grupos ao select (se tiverem itens)
+    if (countMedicas > 0) select.appendChild(grupoMedicas);
+    if (countNaoMedicas > 0) select.appendChild(grupoNaoMedicas);
+
+    if (countMedicas + countNaoMedicas === 0) {
+      const option = document.createElement('option');
+      option.textContent = "Nenhuma especialidade disponível para este perfil";
+      option.disabled = true;
+      select.appendChild(option);
+    }
+  }
+
+  isEspecialidadePermitida(nomeEspecialidade, sexoPaciente, idadePaciente) {
+    // Busca a regra específica ou usa o default (liberado para todos)
+    const regra = APP_CONFIG.REGRAS_ESPECIALIDADES[nomeEspecialidade] || APP_CONFIG.REGRAS_ESPECIALIDADES['default'];
+
+    // Verifica Sexo
+    if (regra.sexo !== 'ambos' && regra.sexo !== sexoPaciente) {
       return false;
     }
 
-    if (nome.length < 3) {
-      this.setError('nome', 'Nome deve ter pelo menos 3 caracteres');
+    // Verifica Idade Mínima
+    if (regra.minIdade && idadePaciente < regra.minIdade) {
       return false;
     }
 
-    if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(nome)) {
-      this.setError('nome', 'Nome deve conter apenas letras');
+    // Verifica Idade Máxima
+    if (regra.maxIdade && idadePaciente > regra.maxIdade) {
       return false;
     }
 
-    this.setSuccess('nome');
     return true;
+  }
+
+  // --- Validações Individuais ---
+
+  validateNome() {
+    const val = this.inputs.nome.value.trim();
+    if (val.length < 3) {
+      this.setError('nome', 'Nome inválido'); return false;
+    }
+    this.setSuccess('nome'); return true;
   }
 
   validateCPF() {
-    const cpf = this.inputs.documento.value;
-
-    if (!cpf) {
-      this.setError('documento', 'CPF é obrigatório');
-      return false;
+    if (!Utils.validarCPF(this.inputs.documento.value)) {
+      this.setError('documento', 'CPF inválido'); return false;
     }
-
-    if (!Utils.validarCPF(cpf)) {
-      this.setError('documento', 'CPF inválido');
-      return false;
-    }
-
-    this.setSuccess('documento');
-    return true;
+    this.setSuccess('documento'); return true;
   }
 
-  validateEspecialidade() {
-    const especialidade = this.inputs.especialidade.value;
+  // ... Validações simples
+  validateMunicipio() { return this.inputs.municipio.value !== "" ? (this.setSuccess('municipio'), true) : (this.setError('municipio', 'Obrigatório'), false); }
+  validateEndereco() { return this.inputs.endereco.value.length > 5 ? (this.setSuccess('endereco'), true) : (this.setError('endereco', 'Obrigatório'), false); }
+  validateEspecialidade() { return this.inputs.especialidade.value !== "" ? (this.setSuccess('especialidade'), true) : (this.setError('especialidade', 'Obrigatório'), false); }
 
-    if (!especialidade) {
-      this.setError('especialidade', 'Selecione uma especialidade');
-      return false;
-    }
-
-    this.setSuccess('especialidade');
-    return true;
+  setError(field, msg) {
+    const input = this.inputs[field];
+    input.classList.add('border-red-500');
   }
-
-  validateMunicipio() {
-    const municipio = this.inputs.municipio.value;
-
-    if (!municipio) {
-      this.setError('municipio', 'Selecione um município');
-      return false;
-    }
-
-    this.setSuccess('municipio');
-    return true;
-  }
-
-  validateEndereco() {
-    const endereco = this.inputs.endereco.value.trim();
-
-    if (!endereco) {
-      this.setError('endereco', 'Endereço é obrigatório');
-      return false;
-    }
-
-    if (endereco.length < 5) {
-      this.setError('endereco', 'Endereço deve ter pelo menos 5 caracteres');
-      return false;
-    }
-
-    this.setSuccess('endereco');
-    return true;
-  }
-
-  setError(fieldName, message) {
-    const input = this.inputs[fieldName];
-    let feedback = input.parentElement.querySelector('.feedback-message');
-
-    if (!feedback) {
-      feedback = document.createElement('p');
-      feedback.className = 'feedback-message feedback-error';
-      input.parentElement.appendChild(feedback);
-    }
-
-    input.classList.add('input-error');
-    input.classList.remove('input-success');
-    feedback.textContent = message;
-    feedback.classList.add('show', 'feedback-error');
-    feedback.classList.remove('feedback-success');
-    this.errors[fieldName] = message;
-  }
-
-  setSuccess(fieldName) {
-    const input = this.inputs[fieldName];
-    let feedback = input.parentElement.querySelector('.feedback-message');
-
-    if (feedback) {
-      feedback.classList.remove('show');
-    }
-
-    input.classList.remove('input-error');
-    input.classList.add('input-success');
-    delete this.errors[fieldName];
+  
+  setSuccess(field) {
+    const input = this.inputs[field];
+    input.classList.remove('border-red-500');
+    input.classList.add('border-green-500');
   }
 
   async buscarCEPAutomatico(cep) {
-    const endereco = this.inputs.endereco;
-    const originalValue = endereco.value;
-
-    endereco.value = 'Buscando CEP...';
-    endereco.disabled = true;
-
+    this.inputs.endereco.disabled = true;
+    this.inputs.endereco.value = "Buscando...";
     const dados = await Utils.buscarCEP(cep);
-
+    
     if (dados) {
-      endereco.value = `${dados.logradouro}, ${dados.bairro}, ${dados.localidade} - ${dados.uf}`;
-      Utils.showToast('CEP encontrado com sucesso!', 'success');
+      this.inputs.endereco.value = `${dados.logradouro}, ${dados.bairro}, ${dados.localidade} - ${dados.uf}`;
+      Utils.showToast('Endereço encontrado!');
     } else {
-      endereco.value = originalValue;
-      Utils.showToast('CEP não encontrado. Digite manualmente.', 'warning');
+      this.inputs.endereco.value = "";
+      Utils.showToast('CEP não encontrado', 'error');
     }
-
-    endereco.disabled = false;
+    this.inputs.endereco.disabled = false;
+    this.inputs.endereco.focus();
   }
 
   validateAll() {
-    const isNomeValid = this.validateNome();
-    const isCPFValid = this.validateCPF();
-    const isEspecialidadeValid = this.validateEspecialidade();
-    const isMunicipioValid = this.validateMunicipio();
-    const isEnderecoValid = this.validateEndereco();
+    const sexoOk = this.inputs.sexo.value !== "";
+    const idadeOk = this.inputs.idade.value !== "" && parseInt(this.inputs.idade.value) >= 0;
 
-    return isNomeValid && isCPFValid && isEspecialidadeValid &&
-           isMunicipioValid && isEnderecoValid;
+    return this.validateNome() && this.validateCPF() && sexoOk && idadeOk &&
+           this.validateEspecialidade() && this.validateMunicipio() && this.validateEndereco();
   }
 
   async handleSubmit(event) {
     event.preventDefault();
 
     if (!this.validateAll()) {
-      Utils.showToast('Por favor, corrija os erros no formulário', 'error');
+      Utils.showToast('Preencha todos os campos corretamente', 'error');
       return;
     }
 
-    const submitButton = this.form.querySelector('button[type="submit"]');
-    const originalText = submitButton.innerHTML;
-
-    submitButton.disabled = true;
-    submitButton.innerHTML = 'Processando... <span class="spinner"></span>';
-
-    const formData = this.getFormData();
+    const btn = this.form.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Processando...';
 
     try {
-      // Buscar especialistas disponíveis
-      submitButton.innerHTML = 'Buscando especialistas... <span class="spinner"></span>';
+      const formData = this.getFormData();
+
+      // 1. Geocodificar endereço do paciente
+      console.log('Geocodificando endereço do paciente...');
+      const coordsPaciente = await mapsIntegration.geocodificarEndereco(formData.endereco);
+      console.log('Coordenadas obtidas:', coordsPaciente);
+
+      // 2. Buscar especialistas e geocodificar suas UPAEs
+      console.log('Buscando UPAEs compatíveis...');
       const especialistas = await this.buscarEspecialistas(formData);
 
       if (especialistas.length === 0) {
-        Utils.showToast('Nenhum especialista disponível no momento', 'error');
-        return;
+        throw new Error('Nenhuma unidade encontrada para esta especialidade.');
       }
 
-      // Otimizar alocação
-      submitButton.innerHTML = 'Calculando melhor opção... <span class="spinner"></span>';
+      // 3. Geocodificar endereços das UPAEs
+      console.log('Geocodificando UPAEs...');
+      for (const esp of especialistas) {
+        try {
+          const coords = await mapsIntegration.geocodificarEndereco(esp.endereco);
+          esp.lat = coords.lat;
+          esp.lon = coords.lng;
+          console.log(`${esp.nome}: ${coords.lat}, ${coords.lng}`);
+        } catch (error) {
+          console.error(`Erro ao geocodificar ${esp.nome}:`, error);
+          throw new Error(`Não foi possível localizar a UPAE ${esp.municipio}. Verifique sua conexão.`);
+        }
+      }
+
+      // 4. Otimizar com algoritmo genético
+      console.log('Executando otimização genética...');
+      const pacienteComCoordenadas = {
+        ...this.formatarPaciente(formData),
+        lat: coordsPaciente.lat,
+        lon: coordsPaciente.lng
+      };
+
       const resultado = await otimizador.encontrarMelhorAlocacao(
-        this.formatarPaciente(formData),
+        pacienteComCoordenadas,
         especialistas
       );
 
-      if (!resultado.sucesso) {
-        Utils.showToast('Não foi possível encontrar uma alocação adequada', 'error');
-        return;
-      }
+      if (!resultado.sucesso) throw new Error('Não foi possível alocar.');
 
-      // Salvar agendamento
-      submitButton.innerHTML = 'Confirmando agendamento... <span class="spinner"></span>';
-      await this.enviarDados({
-        ...formData,
-        alocacao: resultado.melhorOpcao,
-        explicacao: resultado.explicacao
-      });
-
-      // Redirecionar para página de resultado
-      this.mostrarResultado(resultado);
+      // 5. Salvar e Redirecionar
+      localStorage.setItem('resultadoAgendamento', JSON.stringify(resultado));
+      window.location.href = 'resultado.html';
 
     } catch (error) {
-      console.error('Erro ao processar agendamento:', error);
-      Utils.showToast('Erro ao processar solicitação. Tente novamente.', 'error');
+      console.error('Erro:', error);
+      Utils.showToast(error.message, 'error');
     } finally {
-      submitButton.disabled = false;
-      submitButton.innerHTML = originalText;
+      btn.disabled = false;
+      btn.innerHTML = originalText;
     }
-  }
-
-  // Buscar especialistas disponíveis
-  // IMPORTANTE: Função de demonstração - substituir por integração real com backend
-  async buscarEspecialistas(formData) {
-    // Simulação de chamada à API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.warn('⚠️ ATENÇÃO: Usando dados de demonstração. Implemente integração real com backend.');
-
-    // Dados realistas de UPAs de Pernambuco para demonstração
-    const upasDisponiveis = [
-      {
-        municipio: 'recife',
-        unidades: [
-          { nome: 'UPA Imbiribeira', endereco: 'Av. Mal. Mascarenhas de Morais, Imbiribeira, Recife, PE' },
-          { nome: 'UPA Torrões', endereco: 'Rua dos Coqueiros, Torrões, Recife, PE' }
-        ]
-      },
-      {
-        municipio: 'jaboatao',
-        unidades: [
-          { nome: 'UPA Cavaleiro', endereco: 'Av. Barreto de Menezes, Cavaleiro, Jaboatão dos Guararapes, PE' },
-          { nome: 'UPA Prazeres', endereco: 'Av. Ayrton Senna, Prazeres, Jaboatão dos Guararapes, PE' }
-        ]
-      },
-      {
-        municipio: 'cabo',
-        unidades: [
-          { nome: 'UPA Ponte dos Carvalhos', endereco: 'Av. Francisco Domingos, Ponte dos Carvalhos, Cabo de Santo Agostinho, PE' }
-        ]
-      },
-      {
-        municipio: 'olinda',
-        unidades: [
-          { nome: 'UPA Jardim Atlântico', endereco: 'Av. Presidente Kennedy, Jardim Atlântico, Olinda, PE' }
-        ]
-      },
-      {
-        municipio: 'paulista',
-        unidades: [
-          { nome: 'UPA Janga', endereco: 'Av. Beira Mar, Janga, Paulista, PE' }
-        ]
-      },
-      {
-        municipio: 'igarassu',
-        unidades: [
-          { nome: 'UPA Igarassu', endereco: 'Centro, Igarassu, PE' }
-        ]
-      }
-    ];
-
-    const especialistas = [];
-
-    upasDisponiveis.forEach(upaInfo => {
-      const config = APP_CONFIG.MUNICIPIOS[upaInfo.municipio];
-      if (!config) return;
-
-      upaInfo.unidades.forEach((unidade, idx) => {
-        especialistas.push({
-          id: `${upaInfo.municipio}-${idx}`,
-          nome: 'Aguardando designação pelo sistema de saúde',
-          especialidade: formData.especialidade,
-          municipio: config.nome,
-          unidade: unidade.nome,
-          endereco: unidade.endereco,
-          coordenadas: { lat: config.lat, lng: config.lng },
-          tempoEsperaDias: Math.floor(Math.random() * 20) + 1, // Simula fila real
-          vagasDisponiveis: Math.floor(Math.random() * 10) + 1,
-          observacao: 'Dados de demonstração - aguardando integração com sistema oficial'
-        });
-      });
-    });
-
-    return especialistas;
-  }
-
-  // Formatar dados do paciente
-  formatarPaciente(formData) {
-    return {
-      id: 'pac-' + Date.now(),
-      nome: formData.nome,
-      cpf: formData.cpf,
-      endereco: formData.endereco,
-      municipioOrigem: formData.municipio,
-      especialidade: formData.especialidade,
-      idade: formData.idade || 30,
-      gestante: formData.gestante || false,
-      urgente: formData.urgente || false,
-      deficiencia: formData.deficiencia || false
-    };
-  }
-
-  // Mostrar resultado da otimização
-  mostrarResultado(resultado) {
-    // Armazenar no localStorage para exibir na próxima página
-    localStorage.setItem('resultadoAgendamento', JSON.stringify(resultado));
-
-    // Redirecionar
-    window.location.href = 'resultado.html';
   }
 
   getFormData() {
@@ -441,10 +329,8 @@ class FormValidator {
     return {
       nome: this.inputs.nome.value.trim(),
       cpf: this.inputs.documento.value,
-      idade: parseInt(document.getElementById('idade')?.value || 30),
-      gestante: document.getElementById('gestante')?.checked || false,
-      deficiencia: document.getElementById('deficiencia')?.checked || false,
-      urgente: document.getElementById('urgente')?.checked || false,
+      sexo: this.inputs.sexo.value,
+      idade: parseInt(this.inputs.idade.value),
       especialidade: this.inputs.especialidade.value,
       municipio: this.inputs.municipio.value,
       endereco: this.inputs.endereco.value.trim(),
@@ -453,41 +339,40 @@ class FormValidator {
     };
   }
 
-  async enviarDados(data) {
-    // Simulação de delay de rede
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log('Dados enviados:', data);
-        resolve({ success: true });
-      }, 2000);
-    });
+  formatarPaciente(data) {
+    // Cria objeto paciente para o otimizador
+    return {
+      id: 'pac-' + Date.now(),
+      nome: data.nome,
+      cpf: data.cpf,
+      sexo: data.sexo,
+      especialidade: data.especialidade,
+      endereco: data.endereco,
+      municipio: data.municipio,
+      idade: data.idade,
+      gestante: false,
+      deficiencia: false,
+      urgente: false
+    };
+  }
 
-    // Implementação real:
-    /*
-    const response = await fetch(CONFIG.API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-      throw new Error('Erro ao enviar dados');
-    }
-
-    return await response.json();
-    */
+  async buscarEspecialistas(formData) {
+    // Simula busca no backend filtrando UPAEs que tem a string da especialidade
+    return APP_CONFIG.UPAES
+      .filter(u => u.especialidades.includes(formData.especialidade))
+      .map(u => ({
+        id: u.id,
+        unidade: u.nome, // Otimizador espera 'unidade'
+        nome: u.nome,
+        municipio: u.municipio,
+        endereco: u.endereco,
+        especialidade: formData.especialidade,
+        tempoEsperaDias: Math.floor(Math.random() * 15), // Simulação
+        vagasDisponiveis: 5
+      }));
   }
 }
 
-// Inicialização da aplicação
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Aplicação de Agendamento inicializada');
-
-  // Inicializar validador de formulário
-  const validator = new FormValidator('agendamento-form');
-
-  // Adicionar animação de fade-in ao carregar
-  document.querySelector('.form-container')?.classList.add('fade-in');
+  new FormValidator('agendamento-form');
 });

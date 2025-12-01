@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Otimização UPAs PE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./src/css/styles.css">
+    <style>
+        .login-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="login-bg min-h-screen flex items-center justify-center p-4">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <p id="toast-message"></p>
+    </div>
+
+    <!-- Container de Login -->
+    <div class="w-full max-w-md">
+
+        <!-- Card de Login -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 space-y-6">
+
+            <!-- Logo/Header -->
+            <div class="text-center">
+                <div class="mb-4">
+                    <img src="./public/assets/images/UPAE.png" alt="Logo UPAE" class="h-24 mx-auto">
+                </div>
+                <p class="text-gray-600 text-sm mt-2">Sistema de Alocação de Pacientes Otimizado</p>
+            </div>
+
+            <!-- Formulário -->
+            <form id="login-form" class="space-y-5">
+
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        Email de Acesso
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+                            </svg>
+                        </div>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                            placeholder="seu.email@saude.pe.gov.br"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- Senha -->
+                <div>
+                    <label for="senha" class="block text-sm font-medium text-gray-700 mb-2">
+                        Senha
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <input
+                            type="password"
+                            id="senha"
+                            name="senha"
+                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                            placeholder="••••••••"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- Lembrar-me -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input
+                            id="lembrar"
+                            name="lembrar"
+                            type="checkbox"
+                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        >
+                        <label for="lembrar" class="ml-2 block text-sm text-gray-700">
+                            Lembrar-me
+                        </label>
+                    </div>
+                    <div class="text-sm">
+                        <a href="#" class="font-medium text-blue-600 hover:text-blue-500">
+                            Esqueceu a senha?
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Botão de Login -->
+                <button
+                    type="submit"
+                    class="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                    </svg>
+                    Acessar Sistema
+                </button>
+
+            </form>
+
+            <!-- Rodapé -->
+            <div class="text-center text-xs text-gray-500 pt-4 border-t">
+                <p>Secretaria de Saúde do Estado de Pernambuco</p>
+                <p class="mt-1">Sistema protegido por autenticação</p>
+            </div>
+
+        </div>
+
+        <!-- Link para Política de Privacidade -->
+        <div class="text-center mt-6">
+            <a href="politica-privacidade.html" class="text-white text-sm hover:underline flex items-center justify-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                Política de Privacidade e Proteção de Dados
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Configuração
+        const CREDENTIALS = {
+            email: 'admin@admin.com',
+            senha: 'admin'
+        };
+
+        // Utilitários
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+
+            toast.className = `toast toast-${type}`;
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Handler do formulário
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const senha = document.getElementById('senha').value;
+            const lembrar = document.getElementById('lembrar').checked;
+
+            // Validação
+            if (email === CREDENTIALS.email && senha === CREDENTIALS.senha) {
+                // Salvar sessão
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('user_email', email);
+
+                if (lembrar) {
+                    localStorage.setItem('remember_user', email);
+                }
+
+                showToast('Login realizado com sucesso! Redirecionando...', 'success');
+
+                // Redirecionar após 1 segundo
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+
+            } else {
+                showToast('Email ou senha incorretos', 'error');
+            }
+        });
+
+        // Verificar se já está autenticado
+        if (sessionStorage.getItem('authenticated') === 'true') {
+            window.location.href = 'index.html';
+        }
+
+        // Preencher email se estava lembrado
+        const rememberedUser = localStorage.getItem('remember_user');
+        if (rememberedUser) {
+            document.getElementById('email').value = rememberedUser;
+            document.getElementById('lembrar').checked = true;
+        }
+    </script>
+
+</body>
+</html>

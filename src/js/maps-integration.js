@@ -35,19 +35,46 @@ class MapsIntegration {
     return new Promise((resolve, reject) => {
       // Verificar se já está carregado
       if (typeof google !== 'undefined' && google.maps) {
+        console.log('✓ Google Maps já carregado');
         resolve();
         return;
       }
+
+      console.log('📡 Carregando Google Maps API...');
 
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${this.apiKey}&libraries=places,geometry`;
       script.async = true;
       script.defer = true;
 
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Erro ao carregar Google Maps'));
+      script.onload = () => {
+        console.log('✓ Script do Google Maps carregado');
+
+        // Verificar se houve erro de autenticação ou quota
+        if (typeof google === 'undefined' || !google.maps) {
+          const errorMsg = 'Google Maps não inicializou corretamente. Possíveis causas: chave API inválida, quota excedida, ou APIs não habilitadas.';
+          console.error('❌', errorMsg);
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        resolve();
+      };
+
+      script.onerror = (error) => {
+        const errorMsg = `Erro ao carregar script do Google Maps. Verifique: 1) Conexão com internet, 2) Chave API válida, 3) CORS permitido`;
+        console.error('❌', errorMsg, error);
+        reject(new Error(errorMsg));
+      };
 
       document.head.appendChild(script);
+
+      // Timeout de 10 segundos
+      setTimeout(() => {
+        if (!this.initialized) {
+          reject(new Error('Timeout ao carregar Google Maps API (10s). Verifique sua conexão.'));
+        }
+      }, 10000);
     });
   }
 
@@ -431,6 +458,28 @@ class MapsIntegration {
           }
         });
       }
+    });
+  }
+
+  // Geocodificar endereço (converter endereço em coordenadas lat/lng)
+  async geocodificarEndereco(endereco) {
+    if (!this.initialized) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.geocoder.geocode({ address: endereco }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          resolve({
+            lat: location.lat(),
+            lng: location.lng(),
+            enderecoFormatado: results[0].formatted_address
+          });
+        } else {
+          reject(new Error(`Geocodificação falhou: ${status}`));
+        }
+      });
     });
   }
 }

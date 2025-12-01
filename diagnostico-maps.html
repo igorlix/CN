@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Google Maps API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .log-success { background: #d1fae5; color: #065f46; }
+        .log-error { background: #fee2e2; color: #991b1b; }
+        .log-warning { background: #fef3c7; color: #92400e; }
+        .log-info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🔍 Diagnóstico Google Maps API</h1>
+            <p class="text-gray-600">Testando conexão e autenticação com a API do Google Maps</p>
+        </div>
+
+        <!-- Informações da API Key -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Chave API Configurada</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600 mb-2">Chave:</p>
+                <p id="api-key-display" class="font-mono text-sm bg-white p-2 rounded border"></p>
+            </div>
+        </div>
+
+        <!-- Log de Diagnóstico -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Log de Diagnóstico</h2>
+            <div id="diagnostic-log" class="space-y-2 max-h-96 overflow-y-auto"></div>
+        </div>
+
+        <!-- Teste Simples -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Teste Rápido de Geocodificação</h2>
+            <p class="text-sm text-gray-600 mb-4">Testar se a API consegue geocodificar um endereço simples</p>
+            <input
+                type="text"
+                id="endereco-teste"
+                value="Recife, PE, Brasil"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md mb-3"
+            >
+            <button onclick="testarGeocodificacao()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                Testar Geocodificação
+            </button>
+            <div id="resultado-geo" class="mt-4"></div>
+        </div>
+
+        <!-- Mapa de Teste -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">Mapa de Teste</h2>
+            <div id="map" class="w-full h-96 bg-gray-200 rounded-lg"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'AIzaSyDosD-8buFssKmkoSQCtqNKskkvtn_5E6E';
+        let logContainer;
+        let geocoder;
+
+        // Funções de log
+        function log(message, type = 'info') {
+            if (!logContainer) {
+                logContainer = document.getElementById('diagnostic-log');
+            }
+
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // Também logar no console
+            const consoleMethod = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log';
+            console[consoleMethod](`[${timestamp}] ${message}`);
+        }
+
+        // Exibir chave API
+        document.getElementById('api-key-display').textContent = API_KEY;
+
+        // Capturar erros do Google Maps
+        window.gm_authFailure = function() {
+            log('❌ ERRO DE AUTENTICAÇÃO: Chave API inválida ou sem permissões', 'error');
+            log('Verifique se a chave está correta e se as APIs estão habilitadas no Google Cloud Console', 'warning');
+        };
+
+        // Interceptar console.error para capturar erros do Google Maps
+        const originalError = console.error;
+        console.error = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Google Maps') || message.includes('google.maps')) {
+                log(`Console Error: ${message}`, 'error');
+            }
+            originalError.apply(console, args);
+        };
+
+        // Carregar Google Maps
+        function carregarGoogleMaps() {
+            log('Iniciando carregamento do Google Maps API...', 'info');
+
+            return new Promise((resolve, reject) => {
+                // Verificar se já está carregado
+                if (typeof google !== 'undefined' && google.maps) {
+                    log('✓ Google Maps já estava carregado', 'success');
+                    resolve();
+                    return;
+                }
+
+                log(`Carregando script: https://maps.googleapis.com/maps/api/js?key=${API_KEY.substring(0, 20)}...`, 'info');
+
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places,geometry`;
+                script.async = true;
+                script.defer = true;
+
+                script.onload = () => {
+                    log('✓ Script carregado com sucesso', 'success');
+
+                    // Aguardar um pouco para garantir que google.maps está disponível
+                    setTimeout(() => {
+                        if (typeof google !== 'undefined' && google.maps) {
+                            log('✓ Google Maps inicializado corretamente', 'success');
+                            log(`Versão da API: ${google.maps.version}`, 'info');
+                            resolve();
+                        } else {
+                            const msg = 'Erro: google.maps não está disponível após carregar script';
+                            log(msg, 'error');
+                            reject(new Error(msg));
+                        }
+                    }, 500);
+                };
+
+                script.onerror = (error) => {
+                    const msg = 'Erro ao carregar script do Google Maps. Verifique conexão com internet.';
+                    log(msg, 'error');
+                    log(`Detalhes: ${error}`, 'error');
+                    reject(new Error(msg));
+                };
+
+                document.head.appendChild(script);
+                log('Script adicionado ao DOM', 'info');
+            });
+        }
+
+        // Inicializar mapa
+        async function inicializarMapa() {
+            try {
+                log('Criando mapa...', 'info');
+
+                const mapElement = document.getElementById('map');
+                const recife = { lat: -8.0476, lng: -34.8770 };
+
+                const map = new google.maps.Map(mapElement, {
+                    center: recife,
+                    zoom: 12,
+                    mapTypeId: google.maps.MapTypeId.ROADMAP
+                });
+
+                log('✓ Mapa criado com sucesso', 'success');
+
+                // Adicionar marcador
+                new google.maps.Marker({
+                    position: recife,
+                    map: map,
+                    title: 'Recife, PE'
+                });
+
+                log('✓ Marcador adicionado ao mapa', 'success');
+
+                // Inicializar geocoder
+                geocoder = new google.maps.Geocoder();
+                log('✓ Geocoder inicializado', 'success');
+
+            } catch (error) {
+                log(`❌ Erro ao criar mapa: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        }
+
+        // Testar geocodificação
+        async function testarGeocodificacao() {
+            const resultadoDiv = document.getElementById('resultado-geo');
+            const endereco = document.getElementById('endereco-teste').value;
+
+            log(`Testando geocodificação: "${endereco}"`, 'info');
+
+            resultadoDiv.innerHTML = `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-blue-800">Processando...</p>
+                </div>
+            `;
+
+            try {
+                if (!geocoder) {
+                    throw new Error('Geocoder não inicializado. Aguarde o carregamento do mapa.');
+                }
+
+                geocoder.geocode({ address: endereco }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        const location = results[0].geometry.location;
+                        const lat = location.lat();
+                        const lng = location.lng();
+
+                        log(`✓ Geocodificação bem-sucedida: (${lat}, ${lng})`, 'success');
+
+                        resultadoDiv.innerHTML = `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <p class="font-semibold text-green-900 mb-2">✓ Sucesso!</p>
+                                <p class="text-sm text-gray-700"><strong>Endereço:</strong> ${results[0].formatted_address}</p>
+                                <p class="text-sm text-gray-700"><strong>Latitude:</strong> ${lat}</p>
+                                <p class="text-sm text-gray-700"><strong>Longitude:</strong> ${lng}</p>
+                            </div>
+                        `;
+                    } else {
+                        const msg = `Geocodificação falhou: ${status}`;
+                        log(`❌ ${msg}`, 'error');
+
+                        resultadoDiv.innerHTML = `
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <p class="text-red-800"><strong>Erro:</strong> ${msg}</p>
+                            </div>
+                        `;
+                    }
+                });
+
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+
+                resultadoDiv.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p class="text-red-800"><strong>Erro:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Iniciar diagnóstico
+        async function iniciarDiagnostico() {
+            log('=== INICIANDO DIAGNÓSTICO ===', 'info');
+            log(`Navegador: ${navigator.userAgent}`, 'info');
+            log(`Conexão online: ${navigator.onLine ? 'Sim' : 'Não'}`, navigator.onLine ? 'success' : 'error');
+
+            try {
+                await carregarGoogleMaps();
+                await inicializarMapa();
+                log('=== DIAGNÓSTICO CONCLUÍDO COM SUCESSO ===', 'success');
+            } catch (error) {
+                log(`=== DIAGNÓSTICO FALHOU: ${error.message} ===`, 'error');
+            }
+        }
+
+        // Executar ao carregar página
+        window.onload = iniciarDiagnostico;
+    </script>
+</body>
+</html>
