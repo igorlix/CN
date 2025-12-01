@@ -8,6 +8,49 @@ class OtimizadorAlocacao {
   async encontrarMelhorAlocacao(paciente, especialistasDisponiveis) {
     console.log(`Iniciando otimização genética para: ${paciente.nome}`);
 
+    /**
+     * ============================================================
+     * VERIFICAÇÃO: DADOS DO FORMULÁRIO vs DADOS MOCKADOS
+     * ============================================================
+     *
+     * RESPOSTA: A otimização de rota USA DADOS REAIS DO FORMULÁRIO
+     *
+     * Fluxo de Dados:
+     * 1. O usuário preenche o formulário (index.html) com:
+     *    - Nome, CPF, idade, sexo, especialidade, município, endereço
+     *
+     * 2. O sistema geocodifica o endereço fornecido usando Google Maps API
+     *    em app.js (função handleSubmit) para obter lat/lon REAIS
+     *
+     * 3. Este arquivo (otimizacao.js) recebe os dados do paciente com
+     *    coordenadas geocodificadas REAIS (não mockadas)
+     *
+     * 4. Envia para o backend Python (algoritmo/otimizador_genetico.py)
+     *    via POST /api/otimizar com payload contendo:
+     *    - paciente.lat, paciente.lon (do endereço REAL fornecido)
+     *    - upae.lat, upae.lon (geocodificadas a partir dos endereços reais das UPAs)
+     *
+     * 5. O algoritmo genético calcula distâncias REAIS usando fórmula
+     *    de Haversine entre as coordenadas do paciente e das UPAs
+     *    (função haversine() em otimizador_genetico.py linha 82-90)
+     *
+     * 6. Retorna a melhor UPAE baseada em:
+     *    - Distância real calculada
+     *    - Tempo de espera real da UPAE
+     *    - Probabilidade de não comparecimento (baseada na distância)
+     *    - Qualidade do transporte público
+     *
+     * NÃO HÁ DADOS MOCKADOS. Todos os cálculos usam:
+     * - Endereço real do paciente (geocodificado)
+     * - Endereços reais das UPAs (geocodificados)
+     * - Distâncias geográficas reais (Haversine)
+     * - Tempos de espera configurados por UPAE (config.js)
+     *
+     * Validação: Se não for possível geocodificar, o sistema LANÇA ERRO
+     * e não permite continuar (linhas 15-17 e 34-36 abaixo)
+     * ============================================================
+     */
+
     // 1. Preparar Payload - SEM FALLBACKS
     // Todas as coordenadas devem ser reais, obtidas via geocodificação
 

@@ -180,11 +180,6 @@ function selecionarOpcao(selectedIndex, listaOpcoes) {
     document.getElementById('endereco-unidade').textContent = endereco;
     
     const badge = document.getElementById('badge-recomendacao');
-    const scoreEl = document.getElementById('score-ia');
-
-    // Fitness do GA (0-1), converter para percentual
-    const scoreVal = opcao.score ? (opcao.score * 100).toFixed(1) + '%' : '--';
-    scoreEl.textContent = scoreVal;
     
     if (selectedIndex === 0) {
         badge.textContent = "Melhor Opção (IA)";
@@ -587,21 +582,53 @@ function mostrarWhatsAppSimulado() {
                     </div>
                 </div>
 
+                <!-- Mapa de Localização -->
+                <div class="flex mb-3">
+                    <div class="bg-white rounded-lg shadow-sm p-2 max-w-xs">
+                        <div class="w-full h-32 rounded-md overflow-hidden bg-gray-200 relative" id="whatsapp-mapa-container">
+                            <div class="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                Carregando mapa...
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-2 px-1">
+                            <strong>Localização da unidade:</strong><br/>
+                            ${esp.endereco || 'Endereço não disponível'}
+                        </p>
+                        <p class="text-xs text-gray-400 text-right">10:24</p>
+                    </div>
+                </div>
+
                 <!-- Mensagem de instrução -->
                 <div class="flex mb-3">
                     <div class="bg-white rounded-lg shadow-sm p-3 max-w-xs">
                         <p class="text-sm text-gray-800 mb-1">
-                            <strong>Importante:</strong>
+                            <strong>Importante - O que levar:</strong>
                         </p>
                         <p class="text-sm text-gray-700 mb-2">
                             • Chegue com 15 minutos de antecedência<br/>
-                            • Traga documento com foto<br/>
+                            • Traga documento oficial com foto (RG ou CNH)<br/>
                             • Leve seus exames anteriores
                         </p>
                         <p class="text-xs text-gray-500 mb-1">
                             Em caso de dúvidas, ligue: <strong>(81) 3184-0000</strong>
                         </p>
                         <p class="text-xs text-gray-400 text-right">10:24</p>
+                    </div>
+                </div>
+
+                <!-- Link de Política de Privacidade -->
+                <div class="flex mb-3">
+                    <div class="bg-white rounded-lg shadow-sm p-3 max-w-xs">
+                        <p class="text-xs text-gray-600 mb-2">
+                            Ao utilizar nosso sistema, seus dados são tratados conforme a LGPD (Lei nº 13.709/2018).
+                        </p>
+                        <a href="politica-privacidade.html" class="text-xs text-blue-600 underline hover:text-blue-800 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Leia nossa Política de Privacidade
+                        </a>
+                        <p class="text-xs text-gray-400 text-right mt-2">10:25</p>
                     </div>
                 </div>
 
@@ -628,4 +655,71 @@ function mostrarWhatsAppSimulado() {
     `;
 
     document.body.appendChild(modal);
+
+    // Carregar mapa do Google Maps no WhatsApp
+    setTimeout(() => {
+        carregarMapaWhatsApp(esp);
+    }, 300);
 };
+
+async function carregarMapaWhatsApp(especialista) {
+    const container = document.getElementById('whatsapp-mapa-container');
+    if (!container) return;
+
+    const lat = especialista.coordenadas?.lat || especialista.lat || -8.0;
+    const lng = especialista.coordenadas?.lng || especialista.lon || -34.9;
+
+    try {
+        // Aguardar Google Maps carregar
+        if (typeof google === 'undefined') {
+            await mapsIntegration.init();
+        }
+
+        // Limpar container
+        container.innerHTML = '<div id="whatsapp-google-map" class="w-full h-full"></div>';
+
+        const mapElement = document.getElementById('whatsapp-google-map');
+        const position = { lat, lng };
+
+        // Criar mapa menor e simplificado
+        const mapaWhatsApp = new google.maps.Map(mapElement, {
+            center: position,
+            zoom: 15,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            zoomControl: false,
+            gestureHandling: 'none',
+            disableDefaultUI: true
+        });
+
+        // Adicionar marcador
+        new google.maps.Marker({
+            position: position,
+            map: mapaWhatsApp,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#EF4444',
+                fillOpacity: 1,
+                strokeColor: '#DC2626',
+                strokeWeight: 2
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar mapa no WhatsApp:', error);
+        // Fallback: Mostrar coordenadas
+        container.innerHTML = `
+            <div class="w-full h-full flex items-center justify-center bg-blue-50">
+                <div class="text-center">
+                    <svg class="w-8 h-8 text-red-500 mx-auto mb-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                    <p class="text-xs text-gray-600">${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+                </div>
+            </div>
+        `;
+    }
+}

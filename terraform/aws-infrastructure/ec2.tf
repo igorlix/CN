@@ -68,7 +68,11 @@ resource "aws_launch_template" "web_server" {
   instance_type = var.instance_type
   key_name      = var.key_pair_name
 
-  vpc_security_group_ids = [aws_security_group.web_server.id]
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups            = [aws_security_group.web_server.id]
+    delete_on_termination      = true
+  }
 
   user_data = base64encode(templatefile("${path.module}/user-data.sh", {
     project_name = var.project_name
@@ -97,7 +101,7 @@ resource "aws_launch_template" "web_server" {
 # Auto Scaling Group
 resource "aws_autoscaling_group" "web_server" {
   name                = "${var.project_name}-asg"
-  vpc_zone_identifier = aws_subnet.private[*].id
+  vpc_zone_identifier = aws_subnet.public[*].id
   target_group_arns   = [aws_lb_target_group.web.arn]
   health_check_type   = "ELB"
   health_check_grace_period = 300

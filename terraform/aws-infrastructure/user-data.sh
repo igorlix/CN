@@ -11,12 +11,8 @@ dnf update -y
 dnf install -y \
     nginx \
     git \
-    curl \
-    wget \
-    unzip \
     python3 \
-    python3-pip \
-    amazon-cloudwatch-agent
+    python3-pip
 
 # Configurar timezone
 timedatectl set-timezone America/Recife
