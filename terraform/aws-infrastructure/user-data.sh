@@ -246,10 +246,24 @@ server {
 
         # CORS para arquivos estáticos
         add_header 'Access-Control-Allow-Origin' '*' always;
+
+        # Desabilitar cache para HTML (sempre buscar versão mais recente)
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 
-    # Cache para assets estáticos
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+    # Desabilitar cache para JS e CSS (desenvolvimento)
+    location ~* \.(js|css)$ {
+        root /var/www/upae;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    # Cache para imagens e fontes apenas
+    location ~* \.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {
         root /var/www/upae;
         expires 1y;
         add_header Cache-Control "public, immutable";
