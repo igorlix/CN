@@ -2,6 +2,16 @@
 
 Sistema inteligente para agendamento e alocação otimizada de consultas médicas desenvolvido com HTML, Tailwind CSS, JavaScript e integração com Google Maps API.
 
+## Como Rodar?
+### 1- Execução Local
+- Execute o arquivo **api-server.py**
+- Abra o arquivo login.html
+
+### 2- Link AWS
+- Abra o link hospedado na AWS:
+- http://upae-agendamento-alb-1180045372.us-east-2.elb.amazonaws.com 
+
+
 ## Funcionalidades Principais
 
 ### 1. Formulário de Agendamento
