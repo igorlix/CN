@@ -176,8 +176,19 @@ class FormValidator {
     // Busca a regra específica ou usa o default (liberado para todos)
     const regra = APP_CONFIG.REGRAS_ESPECIALIDADES[nomeEspecialidade] || APP_CONFIG.REGRAS_ESPECIALIDADES['default'];
 
+    // Normaliza identidade de gênero para os filtros médicos
+    // Homem Cis e Homem Trans → masculino
+    // Mulher Cis e Mulher Trans → feminino
+    // Outro → ambos (acesso a todas especialidades)
+    let sexoNormalizado = 'ambos';
+    if (sexoPaciente === 'homem-cis' || sexoPaciente === 'homem-trans') {
+      sexoNormalizado = 'masculino';
+    } else if (sexoPaciente === 'mulher-cis' || sexoPaciente === 'mulher-trans') {
+      sexoNormalizado = 'feminino';
+    }
+
     // Verifica Sexo
-    if (regra.sexo !== 'ambos' && regra.sexo !== sexoPaciente) {
+    if (regra.sexo !== 'ambos' && regra.sexo !== sexoNormalizado) {
       return false;
     }
 

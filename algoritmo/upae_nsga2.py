@@ -1,6 +1,7 @@
 import random, math
 from datetime import datetime, timedelta
 from collections import defaultdict
+from turtle import st
 import matplotlib.pyplot as plt
 
 
@@ -88,6 +89,23 @@ PEN_NS   = 10.0       # penalidade multiplicada pela violação do limite
 # Penalização por paciente sem vaga
 W_UNALLOC = 2.0
 
+def can_fully_allocate(patients, slots):
+    """
+    Verifica se, POR ESPECIALIDADE, há vaga suficiente para todos os pacientes.
+    Se para alguma especialidade #slots < #pacientes, retorna False.
+    """
+    pats_per_spec = defaultdict(int)
+    slots_per_spec = defaultdict(int)
+
+    for p in patients:
+        pats_per_spec[p['specialty']] += 1
+    for s in slots:
+        slots_per_spec[s['specialty']] += 1
+
+    for spec, n_pat in pats_per_spec.items():
+        if slots_per_spec.get(spec, 0) < n_pat:
+            return False
+    return True
 
 
 def compute_p_noshow(patient, slot, base_no_show):
@@ -98,19 +116,25 @@ def compute_p_noshow(patient, slot, base_no_show):
 
 
 
-def is_feasible(chromosome, patients, slots):
+def is_feasible(chromosome, patients, slots, force_allocation=False):
     """
     Restrição dura:
     - Proibido: dois pacientes na mesma vaga
     - Proibido: especialidade incompatível paciente-slot
-    - Permitido: paciente sem vaga (slot = -1 ou None)
+    - Paciente sem vaga (slot = -1 ou None):
+        * se force_allocation == True  -> proibido
+        * se force_allocation == False -> permitido
     """
     slot_map = {s['slot_id']: s for s in slots}
     used_slots = set()
 
     for i, sid in enumerate(chromosome):
         if sid in (-1, None):
-            continue
+            if force_allocation:
+                # cenário com capacidade suficiente, não aceitamos paciente sem vaga
+                return False
+            else:
+                continue
 
         slot = slot_map.get(sid)
         if slot is None:
@@ -125,6 +149,7 @@ def is_feasible(chromosome, patients, slots):
         used_slots.add(sid)
 
     return True
+
 
 def init_feasible_population(pop_size, patients, slots):
     """
@@ -214,64 +239,47 @@ def mutation(chromosome, patients, slots, mutation_rate=0.3):
             chromosome[start:end] = subset
     return chromosome
 
-def repair_chromosome(chromosome, patients, slots):
+def repair_chromosome(chromosome, patients, slots, force_allocation=False):
     """
-    Reparo leve: corrige alguns conflitos usando proximidade.
-    Depois ainda passamos por is_feasible; o que sobrar inválido é descartado.
+    Reparo leve:
+      - limpa slots inexistentes, conflito de slot e especialidade errada -> vira -1
+      - se force_allocation == True:
+            tenta preencher pacientes com -1 usando QUALQUER slot livre
+            compatível de forma simples (não otimiza distância).
     """
     slot_map = {s['slot_id']: s for s in slots}
-    rev = defaultdict(list)
+    used_slots = set()
+
+    # 1ª passada: limpar inconsistências
     for i, sid in enumerate(chromosome):
         if sid in (-1, None):
             continue
-        rev[sid].append(i)
 
-    free_slots = set(s['slot_id'] for s in slots)
-
-    # remover slots inexistentes
-    for sid, lst in list(rev.items()):
-        if sid not in slot_map:
-            for i in lst:
-                chromosome[i] = -1
-            rev.pop(sid, None)
-
-    # tratar conflitos
-    for sid, lst in rev.items():
-        slot = slot_map[sid]
-        valid = [i for i in lst if patients[i]['specialty'] == slot['specialty']]
-        invalid = [i for i in lst if patients[i]['specialty'] != slot['specialty']]
-        for i in invalid:
+        slot = slot_map.get(sid)
+        if slot is None or slot['specialty'] != patients[i]['specialty'] or sid in used_slots:
             chromosome[i] = -1
-        if not valid:
-            continue
-        dists = [
-            (i, haversine(patients[i]['lat'], patients[i]['lon'],
-                          slot['lat'], slot['lon']))
-            for i in valid
-        ]
-        dists.sort(key=lambda x: x[1])
-        for i, _ in dists[1:]:
-            chromosome[i] = -1
-        free_slots.discard(sid)
+        else:
+            used_slots.add(sid)
 
-    # realocar alguns sem vaga para slots livres compatíveis
-    free_slot_list = list(free_slots)
+    if not force_allocation:
+        # cenário de escassez: podemos deixar -1
+        return chromosome
+
+    # 2ª passada (somente se force_allocation == True):
+    # preenche -1 com slots livres compatíveis (sem otimizar distância)
+    free_slots_by_spec = defaultdict(list)
+    for s in slots:
+        if s['slot_id'] not in used_slots:
+            free_slots_by_spec[s['specialty']].append(s['slot_id'])
+
     for i, sid in enumerate(chromosome):
-        if sid not in (-1, None):
-            continue
-        compat = [
-            s for s in slots
-            if s['specialty'] == patients[i]['specialty'] and s['slot_id'] in free_slot_list
-        ]
-        if not compat:
-            chromosome[i] = -1
-            continue
-        best = min(
-            compat,
-            key=lambda s: haversine(patients[i]['lat'], patients[i]['lon'], s['lat'], s['lon'])
-        )
-        chromosome[i] = best['slot_id']
-        free_slot_list.remove(best['slot_id'])
+        if sid in (-1, None):
+            spec = patients[i]['specialty']
+            free_list = free_slots_by_spec.get(spec)
+            if free_list:
+                new_sid = free_list.pop()  # escolhe qualquer um disponível
+                chromosome[i] = new_sid
+                used_slots.add(new_sid)
 
     return chromosome
 
@@ -359,20 +367,17 @@ def mo_tournament_selection(population, fronts, crowding, k=2):
 
 
 
-def evaluate_objectives(chromosome, patients, slots, base_no_show_by_specialty):
+def evaluate_objectives(chromosome, patients, slots, base_no_show_by_specialty,
+                        high_penalty_unalloc=False):
     """
-    Objetivos (MINIMIZAR), sem dividir por N:
+    Objetivos (MINIMIZAR), divindindo por número de atendidos:
 
-    1) adj_trav : soma da distância relativa + penalizações
+    1) adj_trav : soma da distância relativa
     2) adj_wait : soma da espera relativa + penalizações
 
     Penalizações:
-      - W_UNALLOC * num_unallocated
+      - W_UNALLOC (ou peso alto) * num_unallocated
       - Soft constraint: no-show médio > TH_NS
-        (ExpNoShowSum > TH_NS * assigned_count)
-
-    Conflitos e especialidade incompatível:
-      - tratados como RESTRIÇÃO DURA por is_feasible
     """
 
     now = datetime.now()
@@ -413,16 +418,21 @@ def evaluate_objectives(chromosome, patients, slots, base_no_show_by_specialty):
         assigned_count += 1
 
     # Penalização por pacientes sem vaga
-    penalty_unalloc = W_UNALLOC * num_unallocated
+    # Cenário de escassez: penalização MUITO maior
+    w_unalloc = 50.0 if high_penalty_unalloc else W_UNALLOC
+    penalty_unalloc = w_unalloc * num_unallocated
 
-    # Soft constraint de no-show
+    # Soft constraint de no-show (como você já tinha)
     if assigned_count > 0 and NoShowSum > TH_NS * assigned_count:
         viol = NoShowSum - TH_NS * assigned_count
         penalty_ns = PEN_NS * viol
     else:
         penalty_ns = 0.0
-
-    adj_trav = TravelCost 
+    # dividir por num_assigned para normalizar
+    if assigned_count > 0:
+        TravelCost /= assigned_count
+        WaitCost   /= assigned_count
+    adj_trav = TravelCost
     adj_wait = WaitCost + penalty_unalloc + penalty_ns
 
     return (adj_trav, adj_wait)
@@ -487,12 +497,22 @@ def run_nsga2(patients, slots, base_ns,
               pop_size=120, generations=200,
               crossover_rate=0.9, mutation_rate=0.3):
 
+    # 1) Detecta se dá pra atender todo mundo por especialidade
+    force_allocation = can_fully_allocate(patients, slots)
+    # Se NÃO dá, vamos usar penalidade forte em pacientes sem vaga
+    high_penalty_unalloc = not force_allocation
+
+    print(f"force_allocation = {force_allocation}  "
+          f"(capacidade suficiente por especialidade? {'SIM' if force_allocation else 'NÃO'})")
+
+    # 2) População inicial (já viável)
     population = init_feasible_population(pop_size, patients, slots)
     history = []
 
     for gen in range(generations):
+        # 3) Avalia população
         objectives_list = [
-            evaluate_objectives(ch, patients, slots, base_ns)
+            evaluate_objectives(ch, patients, slots, base_ns, high_penalty_unalloc)
             for ch in population
         ]
 
@@ -512,7 +532,7 @@ def run_nsga2(patients, slots, base_ns,
         )
         history.append((gen, mean_front0))
 
-        # gerar filhos viáveis
+        # 4) gerar filhos viáveis
         offspring = []
         max_attempts = 5 * pop_size
         attempts = 0
@@ -524,19 +544,24 @@ def run_nsga2(patients, slots, base_ns,
             c1, c2 = uniform_crossover(p1, p2, crossover_rate)
             c1 = mutation(c1, patients, slots, mutation_rate)
             c2 = mutation(c2, patients, slots, mutation_rate)
-            c1 = repair_chromosome(c1, patients, slots)
-            c2 = repair_chromosome(c2, patients, slots)
-            if is_feasible(c1, patients, slots):
+
+            # reparo leve, mas com preenchimento em cenário force_allocation
+            c1 = repair_chromosome(c1, patients, slots, force_allocation)
+            c2 = repair_chromosome(c2, patients, slots, force_allocation)
+
+            if is_feasible(c1, patients, slots, force_allocation):
                 offspring.append(c1)
-            if len(offspring) < pop_size and is_feasible(c2, patients, slots):
+            if len(offspring) < pop_size and is_feasible(c2, patients, slots, force_allocation):
                 offspring.append(c2)
 
+        # se não conseguimos filhos suficientes, preenche com cópias
         while len(offspring) < pop_size:
             offspring.append(random.choice(population).copy())
 
+        # 5) Seleção elitista
         combined = population + offspring
         combined_objs = [
-            evaluate_objectives(ch, patients, slots, base_ns)
+            evaluate_objectives(ch, patients, slots, base_ns, high_penalty_unalloc)
             for ch in combined
         ]
         combined_fronts = fast_nondominated_sort(combined, combined_objs)
@@ -556,8 +581,9 @@ def run_nsga2(patients, slots, base_ns,
 
         population = new_pop
 
+    # 6) Pareto final
     final_objs = [
-        evaluate_objectives(ch, patients, slots, base_ns)
+        evaluate_objectives(ch, patients, slots, base_ns, high_penalty_unalloc)
         for ch in population
     ]
     final_fronts = fast_nondominated_sort(population, final_objs)
@@ -581,6 +607,7 @@ def run_nsga2(patients, slots, base_ns,
         'fronts': final_fronts,
         'history': history
     }
+
 
 def imprimir_solucao(nome, sol):
     objs = sol['objectives']
@@ -608,6 +635,7 @@ if __name__ == "__main__":
     )
 
     pareto_solutions = res['pareto_solutions']
+    print(f"\nNúmero de soluções na fronteira de Pareto: {len(pareto_solutions)}")
     
     sol_dist   = min(pareto_solutions, key=lambda s: s['objectives'][0])
     sol_espera = min(pareto_solutions, key=lambda s: s['objectives'][1])
@@ -632,9 +660,23 @@ if __name__ == "__main__":
     plt.plot(gens, mean_trav, label="Distância total (média frente 1)")
     plt.plot(gens, mean_wait, label="Espera total (média frente 1)")
     plt.xlabel("Geração")
-    plt.ylabel("Custo (não normalizado)")
+    plt.ylabel("Custo")
     plt.title("Evolução da frente de Pareto (médias)")
     plt.grid(True)
     plt.legend()
+    plt.tight_layout()
+    plt.show()
+    #plot da fernte de pareto final
+    final_objs = res['objectives']
+    plt.figure(figsize=(7,6))
+    plt.scatter(
+        [obj[0] for obj in final_objs],
+        [obj[1] for obj in final_objs],
+        c='blue', alpha=0.6
+    )
+    plt.xlabel("Distância total ")
+    plt.ylabel("Espera total")
+    plt.title("Fronteira de Pareto Final")
+    plt.grid(True)
     plt.tight_layout()
     plt.show()

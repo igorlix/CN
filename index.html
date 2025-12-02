@@ -28,23 +28,22 @@
     <div class="form-container w-full max-w-2xl bg-white rounded-xl shadow-2xl p-6 md:p-8 space-y-8">
 
         <!-- Cabeçalho Restaurado com Logo -->
-        <header class="text-center">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex-1"></div>
-                <div class="flex-1 text-center">
-                    <!-- Logo Restaurada -->
-                    <img src="./public/assets/images/UPAE.png" alt="Logo UPAE" class="h-16 mx-auto mb-3">
-                    <h1 class="text-gray-600 text-sm mt-2">Agendamento UPAE</h1>
-                </div>
-                <div class="flex-1 text-right">
-                    <button onclick="logout()" class="text-sm text-red-600 hover:text-red-800 flex items-center ml-auto">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                        Sair
-                    </button>
-                </div>
+        <header class="text-center relative mb-4"> <div class="flex flex-col items-center justify-center">
+                <img src="./public/assets/images/UPAE.png" 
+                    alt="Logo UPAE" 
+                    class="h-16 object-contain mb-3"> 
+                <h1 class="text-gray-600 text-sm mt-2">Agendamento UPAE</h1>
             </div>
+
+            <div class="absolute right-0 top-0 h-full flex items-center">
+                <button onclick="logout()" class="text-sm text-red-600 hover:text-red-800 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                    Sair
+                </button>
+            </div>
+            
         </header>
 
         <!-- Formulário -->
@@ -86,11 +85,14 @@
 
                         <!-- Sexo -->
                         <div>
-                            <label for="sexo" class="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                            <label for="sexo" class="block text-sm font-medium text-gray-700 mb-1">Gênero</label>
                             <select id="sexo" name="sexo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-150" required>
                                 <option value="" disabled selected>Selecione</option>
-                                <option value="masculino">Masculino</option>
-                                <option value="feminino">Feminino</option>
+                                <option value="homem-cis">Homem Cis</option>
+                                <option value="mulher-cis">Mulher Cis</option>
+                                <option value="homem-trans">Homem Trans</option>
+                                <option value="mulher-trans">Mulher Trans</option>
+                                <option value="outro">Outro</option>
                             </select>
                         </div>
 
@@ -148,7 +150,7 @@
                             </div>
                             <input type="text" id="endereco" name="endereco" placeholder="Digite seu endereço ou CEP" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-150" required>
                         </div>
-                        <p class="mt-2 text-xs text-gray-500">Para encontrarmos a unidade de atendimento mais próxima de você.</p>
+                        <p class="mt-2 text-xs text-gray-500">Para encontrarmos a unidade de atendimento mais próxima</p>
                     </div>
                 </div>
             </div>

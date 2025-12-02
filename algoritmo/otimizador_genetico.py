@@ -92,6 +92,35 @@ def clamp(x, a=0.0, b=0.95):
     """Limita valor entre a e b"""
     return max(a, min(b, x))
 
+def can_fully_allocate(pacientes, upaes):
+    """
+    Verifica se, POR ESPECIALIDADE, há vagas suficientes para todos os pacientes.
+    Retorna True se há capacidade suficiente, False se há escassez.
+
+    Esta função é usada para determinar se devemos aplicar penalização forte
+    em pacientes sem vaga (cenário de escassez).
+    """
+    from collections import defaultdict
+    pats_per_spec = defaultdict(int)
+    vagas_per_spec = defaultdict(int)
+
+    # Conta pacientes por especialidade
+    for p in pacientes:
+        spec = p['especialidade'].lower()
+        pats_per_spec[spec] += 1
+
+    # Conta vagas por especialidade
+    for u in upaes:
+        for esp in u['especialidades']:
+            esp_lower = esp.lower()
+            vagas_per_spec[esp_lower] += 1
+
+    # Verifica se há capacidade suficiente para cada especialidade
+    for spec, n_pat in pats_per_spec.items():
+        if vagas_per_spec.get(spec, 0) < n_pat:
+            return False
+    return True
+
 def compute_p_noshow(paciente, upae, base_no_show):
     """
     Calcula probabilidade de no-show baseada em:
@@ -113,19 +142,26 @@ def compute_p_noshow(paciente, upae, base_no_show):
 # RESTRIÇÕES E VIABILIDADE
 # ==========================================
 
-def is_feasible(chromosome, pacientes, upaes):
+def is_feasible(chromosome, pacientes, upaes, force_allocation=False):
     """
     Restrição dura:
     - Proibido: dois pacientes na mesma UPAE (sem sobrecarga)
     - Proibido: especialidade incompatível paciente-UPAE
-    - Permitido: paciente sem vaga (upae_id = -1 ou None)
+    - Paciente sem vaga (upae_id = -1 ou None):
+        * se force_allocation == True  -> proibido (cenário com capacidade suficiente)
+        * se force_allocation == False -> permitido (cenário de escassez)
     """
     upae_map = {u['id']: u for u in upaes}
     used_upaes = set()
 
     for i, upae_id in enumerate(chromosome):
         if upae_id in (-1, None):
-            continue
+            if force_allocation:
+                # Cenário com capacidade suficiente, não aceitamos paciente sem vaga
+                return False
+            else:
+                # Cenário de escassez, permitimos paciente sem vaga
+                continue
 
         upae = upae_map.get(upae_id)
         if upae is None:
@@ -243,71 +279,54 @@ def mutation(chromosome, pacientes, upaes, mutation_rate=0.3):
             chromosome[start:end] = subset
     return chromosome
 
-def repair_chromosome(chromosome, pacientes, upaes):
+def repair_chromosome(chromosome, pacientes, upaes, force_allocation=False):
     """
-    Reparo leve: corrige alguns conflitos usando proximidade.
-    Depois ainda passamos por is_feasible; o que sobrar inválido é descartado.
+    Reparo em duas etapas:
+    1ª passada: Limpa UPAEs inexistentes, conflitos de vaga e especialidade errada -> vira -1
+    2ª passada: Se force_allocation == True, tenta preencher pacientes com -1
+                usando QUALQUER UPAE livre compatível (sem otimizar distância)
     """
     upae_map = {u['id']: u for u in upaes}
-    rev = defaultdict(list)
+    used_upaes = set()
+
+    # 1ª passada: limpar inconsistências
     for i, uid in enumerate(chromosome):
         if uid in (-1, None):
             continue
-        rev[uid].append(i)
 
-    free_upaes = set(u['id'] for u in upaes)
+        upae = upae_map.get(uid)
+        pac_esp = pacientes[i]['especialidade'].lower()
 
-    # remover UPAEs inexistentes
-    for uid, lst in list(rev.items()):
-        if uid not in upae_map:
-            for i in lst:
-                chromosome[i] = -1
-            rev.pop(uid, None)
-
-    # tratar conflitos
-    for uid, lst in rev.items():
-        upae = upae_map[uid]
-        valid = [
-            i for i in lst
-            if pacientes[i]['especialidade'].lower() in [e.lower() for e in upae['especialidades']]
-        ]
-        invalid = [
-            i for i in lst
-            if pacientes[i]['especialidade'].lower() not in [e.lower() for e in upae['especialidades']]
-        ]
-        for i in invalid:
+        # Verifica se UPAE existe, se especialidade é compatível e se não há conflito
+        if upae is None:
             chromosome[i] = -1
-        if not valid:
-            continue
-        dists = [
-            (i, haversine(pacientes[i]['lat'], pacientes[i]['lon'],
-                          upae['lat'], upae['lon']))
-            for i in valid
-        ]
-        dists.sort(key=lambda x: x[1])
-        for i, _ in dists[1:]:
+        elif pac_esp not in [e.lower() for e in upae['especialidades']]:
             chromosome[i] = -1
-        free_upaes.discard(uid)
+        elif uid in used_upaes:
+            chromosome[i] = -1
+        else:
+            used_upaes.add(uid)
 
-    # realocar alguns sem vaga para UPAEs livres compatíveis
-    free_upae_list = list(free_upaes)
+    if not force_allocation:
+        # Cenário de escassez: podemos deixar -1
+        return chromosome
+
+    # 2ª passada (somente se force_allocation == True):
+    # preenche -1 com UPAEs livres compatíveis (sem otimizar distância)
+    free_upaes_by_spec = defaultdict(list)
+    for u in upaes:
+        if u['id'] not in used_upaes:
+            for esp in u['especialidades']:
+                free_upaes_by_spec[esp.lower()].append(u['id'])
+
     for i, uid in enumerate(chromosome):
-        if uid not in (-1, None):
-            continue
-        compat = [
-            u for u in upaes
-            if pacientes[i]['especialidade'].lower() in [e.lower() for e in u['especialidades']]
-            and u['id'] in free_upae_list
-        ]
-        if not compat:
-            chromosome[i] = -1
-            continue
-        best = min(
-            compat,
-            key=lambda u: haversine(pacientes[i]['lat'], pacientes[i]['lon'], u['lat'], u['lon'])
-        )
-        chromosome[i] = best['id']
-        free_upae_list.remove(best['id'])
+        if uid in (-1, None):
+            spec = pacientes[i]['especialidade'].lower()
+            free_list = free_upaes_by_spec.get(spec)
+            if free_list:
+                new_uid = free_list.pop(0)  # escolhe qualquer um disponível
+                chromosome[i] = new_uid
+                used_upaes.add(new_uid)
 
     return chromosome
 
@@ -399,27 +418,29 @@ def mo_tournament_selection(population, fronts, crowding, k=2):
 # AVALIAÇÃO DE OBJETIVOS (MULTI-OBJETIVO)
 # ==========================================
 
-def evaluate_objectives(chromosome, pacientes, upaes, base_no_show_dict):
+def evaluate_objectives(chromosome, pacientes, upaes, base_no_show_dict, high_penalty_unalloc=False):
     """
-    Objetivos (MINIMIZAR), sem dividir por N:
+    Objetivos (MINIMIZAR), dividindo por número de atendidos para normalização:
 
-    1) adj_trav : soma da distância relativa + penalizações no-show
-    2) adj_wait : soma da espera relativa + penalizações (unallocated + soft constraint)
+    1) adj_trav : soma da distância relativa (normalizada)
+    2) adj_wait : soma da espera relativa + penalizações (normalizada)
 
     Penalizações:
-      - W_UNALLOC * num_unallocated
+      - W_UNALLOC (ou peso alto se high_penalty_unalloc) * num_unallocated
       - Soft constraint: no-show médio > TH_NS
-        (ExpNoShowSum > TH_NS * assigned_count)
 
-    Conflitos e especialidade incompatível:
-      - tratados como RESTRIÇÃO DURA por is_feasible
+    Normalização: Divide custos por assigned_count para evitar viés contra
+                  soluções com mais pacientes alocados.
+
+    high_penalty_unalloc: Se True, aplica penalização 50x maior para pacientes
+                         sem vaga (usado em cenário de escassez)
     """
 
     upae_map = {u['id']: u for u in upaes}
 
     TravelCost = 0.0
     WaitCost   = 0.0
-    NoShowSum  = 0.0
+    NoShowSum  = 0.0  # Soma de probabilidades
     num_unallocated = 0
     assigned_count  = 0
 
@@ -452,7 +473,9 @@ def evaluate_objectives(chromosome, pacientes, upaes, base_no_show_dict):
         assigned_count += 1
 
     # Penalização por pacientes sem vaga
-    penalty_unalloc = W_UNALLOC * num_unallocated
+    # Cenário de escassez: penalização MUITO maior
+    w_unalloc = 50.0 if high_penalty_unalloc else W_UNALLOC
+    penalty_unalloc = w_unalloc * num_unallocated
 
     # Soft constraint de no-show
     if assigned_count > 0 and NoShowSum > TH_NS * assigned_count:
@@ -461,8 +484,13 @@ def evaluate_objectives(chromosome, pacientes, upaes, base_no_show_dict):
     else:
         penalty_ns = 0.0
 
-    adj_trav = TravelCost + penalty_ns
-    adj_wait = WaitCost + penalty_unalloc
+    # Normalização: dividir por num_assigned para evitar viés
+    if assigned_count > 0:
+        TravelCost /= assigned_count
+        WaitCost   /= assigned_count
+
+    adj_trav = TravelCost
+    adj_wait = WaitCost + penalty_unalloc + penalty_ns
 
     return (adj_trav, adj_wait)
 
@@ -532,16 +560,31 @@ def run_nsga2(pacientes, upaes, base_ns=None,
     """
     Executa o NSGA-II para otimização multi-objetivo.
     Retorna as soluções da frente de Pareto.
+
+    Melhorias implementadas:
+    - Detecção automática de capacidade (force_allocation)
+    - Penalização adaptativa para cenários de escassez
+    - Normalização de objetivos por número de pacientes atendidos
     """
     if base_ns is None:
         base_ns = BASE_NO_SHOW
 
+    # 1) Detecta se há capacidade suficiente por especialidade
+    force_allocation = can_fully_allocate(pacientes, upaes)
+    # Se NÃO há capacidade, vamos usar penalidade forte em pacientes sem vaga
+    high_penalty_unalloc = not force_allocation
+
+    print(f"[NSGA-II] force_allocation = {force_allocation}  "
+          f"(capacidade suficiente por especialidade? {'SIM' if force_allocation else 'NÃO'})")
+
+    # 2) População inicial (já viável)
     population = init_feasible_population(pop_size, pacientes, upaes)
     history = []
 
     for gen in range(generations):
+        # 3) Avalia população
         objectives_list = [
-            evaluate_objectives(ch, pacientes, upaes, base_ns)
+            evaluate_objectives(ch, pacientes, upaes, base_ns, high_penalty_unalloc)
             for ch in population
         ]
 
@@ -561,7 +604,7 @@ def run_nsga2(pacientes, upaes, base_ns=None,
         )
         history.append((gen, mean_front0))
 
-        # gerar filhos viáveis
+        # 4) gerar filhos viáveis
         offspring = []
         max_attempts = 5 * pop_size
         attempts = 0
@@ -573,19 +616,24 @@ def run_nsga2(pacientes, upaes, base_ns=None,
             c1, c2 = uniform_crossover(p1, p2, crossover_rate)
             c1 = mutation(c1, pacientes, upaes, mutation_rate)
             c2 = mutation(c2, pacientes, upaes, mutation_rate)
-            c1 = repair_chromosome(c1, pacientes, upaes)
-            c2 = repair_chromosome(c2, pacientes, upaes)
-            if is_feasible(c1, pacientes, upaes):
+
+            # reparo leve, mas com preenchimento em cenário force_allocation
+            c1 = repair_chromosome(c1, pacientes, upaes, force_allocation)
+            c2 = repair_chromosome(c2, pacientes, upaes, force_allocation)
+
+            if is_feasible(c1, pacientes, upaes, force_allocation):
                 offspring.append(c1)
-            if len(offspring) < pop_size and is_feasible(c2, pacientes, upaes):
+            if len(offspring) < pop_size and is_feasible(c2, pacientes, upaes, force_allocation):
                 offspring.append(c2)
 
+        # se não conseguimos filhos suficientes, preenche com cópias
         while len(offspring) < pop_size:
             offspring.append(random.choice(population).copy())
 
+        # 5) Seleção elitista
         combined = population + offspring
         combined_objs = [
-            evaluate_objectives(ch, pacientes, upaes, base_ns)
+            evaluate_objectives(ch, pacientes, upaes, base_ns, high_penalty_unalloc)
             for ch in combined
         ]
         combined_fronts = fast_nondominated_sort(combined, combined_objs)
@@ -605,8 +653,9 @@ def run_nsga2(pacientes, upaes, base_ns=None,
 
         population = new_pop
 
+    # 6) Pareto final
     final_objs = [
-        evaluate_objectives(ch, pacientes, upaes, base_ns)
+        evaluate_objectives(ch, pacientes, upaes, base_ns, high_penalty_unalloc)
         for ch in population
     ]
     final_fronts = fast_nondominated_sort(population, final_objs)

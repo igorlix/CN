@@ -214,7 +214,7 @@ server {
 
     # Proxy para API Python (Backend)
     location /api/ {
-        proxy_pass http://upae_api/;
+        proxy_pass http://upae_api;
         proxy_http_version 1.1;
 
         # Headers

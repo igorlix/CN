@@ -83,7 +83,7 @@ def otimizar():
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"\n❌ ERRO NA OTIMIZAÇÃO:\n{error_details}")
+        print(f"\n[ERRO] ERRO NA OTIMIZACAO:\n{error_details}")
         return jsonify({
             'sucesso': False,
             'erro': str(e),
@@ -192,7 +192,7 @@ def otimizar_lote():
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"\n❌ ERRO NA OTIMIZAÇÃO LOTE:\n{error_details}")
+        print(f"\n[ERRO] ERRO NA OTIMIZACAO LOTE:\n{error_details}")
         return jsonify({
             'sucesso': False,
             'erro': str(e),
@@ -362,11 +362,13 @@ def docs():
     return html
 
 if __name__ == '__main__':
-    print("🚀 Servidor de Otimização UPAE iniciado")
-    print("📍 Rodando em: http://localhost:5000")
-    print("\nEndpoints disponíveis:")
-    print("  POST /api/otimizar - Otimizar alocação de um paciente")
-    print("  POST /api/otimizar-lote - Otimizar alocação de múltiplos pacientes")
+    print("=" * 60)
+    print("Servidor de Otimizacao UPAE iniciado")
+    print("Rodando em: http://localhost:5000")
+    print("\nEndpoints disponiveis:")
+    print("  POST /api/otimizar - Otimizar alocacao de um paciente")
+    print("  POST /api/otimizar-lote - Otimizar alocacao de multiplos pacientes")
     print("  GET  /health - Health check")
+    print("=" * 60)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
