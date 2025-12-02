@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Recuperar dados do LocalStorage
     const dadosRaw = localStorage.getItem('resultadoAgendamento');
-    const dadosPacienteRaw = localStorage.getItem('dadosPacienteForm'); // Tenta pegar backup do form se existir
-    
+    const dadosPacienteRaw = localStorage.getItem('dadosPacienteForm');
+
     if (!dadosRaw) {
         alert('Nenhum resultado encontrado. Redirecionando para o início.');
         window.location.href = 'index.html';
@@ -11,30 +10,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
         const resultado = JSON.parse(dadosRaw);
-        
-        // Tentar reconstruir o objeto paciente se ele não veio completo no resultado
         let paciente = resultado.paciente;
+
         if (!paciente && dadosPacienteRaw) {
             paciente = JSON.parse(dadosPacienteRaw);
         }
-        
-        // Se ainda não tiver, cria um objeto seguro para não quebrar a tela
+
         if (!paciente) {
             paciente = { nome: 'Paciente', cpf: '000.000.000-00', idade: '--', especialidade: 'Geral' };
         }
 
-        // Adiciona paciente ao objeto principal para facilitar acesso
         resultado.paciente = paciente;
 
-        // 2. Preparar lista unificada de opções
-        // Garante que 'alternativas' seja um array mesmo se vier undefined
         const alternativas = Array.isArray(resultado.alternativas) ? resultado.alternativas : [];
         const todasOpcoes = [
             { ...resultado.melhorOpcao, tipo: 'recomendado' },
             ...alternativas.map(alt => ({ ...alt, tipo: 'alternativa' }))
         ];
 
-        // 3. Inicializar a Página
         inicializarPagina(resultado, todasOpcoes);
 
     } catch (e) {
@@ -44,35 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function inicializarPagina(resultado, listaOpcoes) {
-    // Gerar Protocolo
     document.getElementById('protocolo-id').textContent = 'PE-' + Date.now().toString().slice(-8);
-
-    // Renderizar Dados do Paciente
     renderizarDadosPaciente(resultado.paciente);
-
-    // Renderizar Menu Lateral
     renderizarMenuSelecao(listaOpcoes);
 
-    // Selecionar a primeira opção (Recomendada) por padrão
     if (listaOpcoes.length > 0) {
         selecionarOpcao(0, listaOpcoes);
     }
 }
 
-// --- RENDERIZAÇÃO ---
-
 function renderizarDadosPaciente(paciente) {
     const container = document.getElementById('dados-paciente');
-
-    // Formatar CPF (censurar meio)
     const cpfFormatado = paciente.cpf ? paciente.cpf.replace(/(\d{3})\.(\d{3})\.(\d{3})-(\d{2})/, '$1.***.$3-$4') : '---';
-
-    // Formatar sexo
-    const sexoMap = {
-        'masculino': 'Masculino',
-        'feminino': 'Feminino',
-        'outro': 'Outro'
-    };
+    const sexoMap = { 'masculino': 'Masculino', 'feminino': 'Feminino', 'outro': 'Outro' };
     const sexoFormatado = sexoMap[paciente.sexo] || paciente.sexo || '---';
 
     container.innerHTML = `
@@ -110,20 +87,17 @@ function renderizarMenuSelecao(listaOpcoes) {
     listaOpcoes.forEach((opcao, index) => {
         const isRecomendado = index === 0;
         const div = document.createElement('div');
-        
-        // Classes base
+
         div.className = `option-card border rounded-lg p-3 mb-2 flex items-center justify-between bg-white`;
-        if(isRecomendado) div.classList.add('border-blue-200', 'bg-blue-50'); // Destaque inicial leve
-        
+        if(isRecomendado) div.classList.add('border-blue-200', 'bg-blue-50');
+
         div.id = `card-opcao-${index}`;
         div.onclick = () => selecionarOpcao(index, listaOpcoes);
 
-        // Badge
-        const badge = isRecomendado 
+        const badge = isRecomendado
             ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase border border-green-200">Recomendado</span>`
             : `<span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase border border-gray-200">Opção ${index + 1}</span>`;
 
-        // Extração segura de dados
         const municipio = opcao.especialista?.municipio || 'Local';
         const unidade = opcao.especialista?.unidade || opcao.especialista?.nome || 'Unidade';
         const distancia = opcao.detalhes?.distancia || 0;
@@ -145,22 +119,18 @@ function renderizarMenuSelecao(listaOpcoes) {
     });
 }
 
-// --- LÓGICA DE INTERAÇÃO ---
-
 function selecionarOpcao(selectedIndex, listaOpcoes) {
     const opcao = listaOpcoes[selectedIndex];
     if (!opcao) return;
 
-    // Salvar opção selecionada globalmente para usar no WhatsApp
     opcaoSelecionadaAtual = opcao;
 
-    // 1. Atualizar Visual do Menu
     listaOpcoes.forEach((_, idx) => {
         const card = document.getElementById(`card-opcao-${idx}`);
         if (card) {
             if (idx === selectedIndex) {
                 card.classList.add('selected');
-                card.classList.remove('border-gray-200', 'border-blue-200'); // Remove bordas padrão para assumir a selected
+                card.classList.remove('border-gray-200', 'border-blue-200');
             } else {
                 card.classList.remove('selected');
                 card.classList.add('border-gray-200');
@@ -168,19 +138,17 @@ function selecionarOpcao(selectedIndex, listaOpcoes) {
         }
     });
 
-    // 2. Extração segura de dados
     const esp = opcao.especialista || {};
     const det = opcao.detalhes || {};
     const unidadeNome = esp.unidade || esp.nome || 'Unidade de Saúde';
     const endereco = esp.endereco || 'Endereço não disponível';
     const municipio = esp.municipio || '';
-    
-    // 3. Atualizar Cabeçalho do Card
+
     document.getElementById('titulo-unidade').textContent = `${municipio} - ${unidadeNome}`;
     document.getElementById('endereco-unidade').textContent = endereco;
-    
+
     const badge = document.getElementById('badge-recomendacao');
-    
+
     if (selectedIndex === 0) {
         badge.textContent = "Melhor Opção (IA)";
         badge.className = "inline-block px-2 py-1 rounded bg-green-400 text-green-900 text-xs font-bold uppercase tracking-wide mb-2 backdrop-blur-sm shadow-sm";
@@ -189,50 +157,35 @@ function selecionarOpcao(selectedIndex, listaOpcoes) {
         badge.className = "inline-block px-2 py-1 rounded bg-white/20 border border-white/40 text-white text-xs font-bold uppercase tracking-wide mb-2";
     }
 
-    // 4. Atualizar Métricas
     document.getElementById('metrica-distancia').textContent = det.distancia ? `${det.distancia.toFixed(1)} km` : '--';
 
-    // Calcular data do agendamento
     if (det.tempoEspera !== undefined) {
         const dataAgendamento = new Date();
         dataAgendamento.setDate(dataAgendamento.getDate() + det.tempoEspera);
-        const dataFormatada = dataAgendamento.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+        const dataFormatada = dataAgendamento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
         document.getElementById('metrica-espera').innerHTML = `
             <span class="block">${det.tempoEspera} dias</span>
             <span class="block text-xs text-gray-500 font-normal mt-0.5">${dataFormatada}</span>
         `;
-
-        // Salvar data para usar depois
         opcao.dataAgendamento = dataFormatada;
     } else {
         document.getElementById('metrica-espera').textContent = '--';
     }
 
     document.getElementById('metrica-custo').textContent = det.custo !== undefined ? `R$ ${det.custo.toFixed(2)}` : '--';
-    
-    // Probabilidade de falha (No Show)
-    // Verifica diferentes chaves possíveis vindas do backend
+
     let prob = det.probabilidadeNoShow || det.prob_noshow || det.probNoShow || 0;
-    // Se for decimal (0.1), converte para %. Se já for inteiro (10), mantém.
     if (prob > 0 && prob < 1) prob = prob * 100;
-    
+
     const elProb = document.getElementById('metrica-noshow');
     elProb.textContent = Math.round(prob) + '%';
-    
-    // Cor da probabilidade
+
     if (prob < 15) elProb.className = "text-xl font-bold text-green-600";
     else if (prob < 40) elProb.className = "text-xl font-bold text-yellow-600";
     else elProb.className = "text-xl font-bold text-red-600";
 
-
-    // 5. Atualizar Texto de Análise
     atualizarTextoAnalise(det, selectedIndex === 0);
-
-    // 6. Atualizar Mapa
     atualizarMapa(esp);
 }
 
@@ -278,20 +231,16 @@ let mapaGoogleAtual = null;
 
 async function atualizarMapa(especialista) {
     const mapContent = document.getElementById('mapa-content');
-
     const lat = especialista.coordenadas?.lat || especialista.lat || -8.0;
     const lng = especialista.coordenadas?.lng || especialista.lon || -34.9;
 
-    // Criar container para o mapa
     mapContent.innerHTML = '<div id="google-map-resultado" class="w-full h-full"></div>';
 
     try {
-        // Aguardar Google Maps carregar
         if (typeof google === 'undefined') {
             await mapsIntegration.init();
         }
 
-        // Criar mapa
         const mapElement = document.getElementById('google-map-resultado');
         const position = { lat, lng };
 
@@ -304,7 +253,6 @@ async function atualizarMapa(especialista) {
             fullscreenControl: true
         });
 
-        // Adicionar marcador da UPAE
         new google.maps.Marker({
             position: position,
             map: mapaGoogleAtual,
@@ -319,7 +267,6 @@ async function atualizarMapa(especialista) {
             }
         });
 
-        // Info window
         const infoWindow = new google.maps.InfoWindow({
             content: `
                 <div class="p-2">
@@ -341,7 +288,6 @@ async function atualizarMapa(especialista) {
 
     } catch (error) {
         console.error('Erro ao carregar mapa:', error);
-        // Fallback para visualização estática
         mapContent.innerHTML = `
             <div class="relative w-full h-full bg-blue-50 overflow-hidden flex items-center justify-center">
                 <div class="text-center">
@@ -356,10 +302,8 @@ async function atualizarMapa(especialista) {
     }
 }
 
-// Dados da opção selecionada atualmente
 let opcaoSelecionadaAtual = null;
 
-// Tornar função global para o botão HTML chamar
 window.confirmarAgendamento = function() {
     const btn = document.querySelector('button[onclick="confirmarAgendamento()"]');
     const originalContent = btn.innerHTML;

@@ -1,5 +1,3 @@
-// Módulo de Integração com Otimizador Genético (Python API)
-
 class OtimizadorAlocacao {
   constructor() {
     this.apiUrl = APP_CONFIG.API.OTIMIZADOR_GA || 'http://localhost:5000/api/otimizar';
@@ -8,55 +6,9 @@ class OtimizadorAlocacao {
   async encontrarMelhorAlocacao(paciente, especialistasDisponiveis) {
     console.log(`Iniciando otimização genética para: ${paciente.nome}`);
 
-    /**
-     * ============================================================
-     * VERIFICAÇÃO: DADOS DO FORMULÁRIO vs DADOS MOCKADOS
-     * ============================================================
-     *
-     * RESPOSTA: A otimização de rota USA DADOS REAIS DO FORMULÁRIO
-     *
-     * Fluxo de Dados:
-     * 1. O usuário preenche o formulário (index.html) com:
-     *    - Nome, CPF, idade, sexo, especialidade, município, endereço
-     *
-     * 2. O sistema geocodifica o endereço fornecido usando Google Maps API
-     *    em app.js (função handleSubmit) para obter lat/lon REAIS
-     *
-     * 3. Este arquivo (otimizacao.js) recebe os dados do paciente com
-     *    coordenadas geocodificadas REAIS (não mockadas)
-     *
-     * 4. Envia para o backend Python (algoritmo/otimizador_genetico.py)
-     *    via POST /api/otimizar com payload contendo:
-     *    - paciente.lat, paciente.lon (do endereço REAL fornecido)
-     *    - upae.lat, upae.lon (geocodificadas a partir dos endereços reais das UPAs)
-     *
-     * 5. O algoritmo genético calcula distâncias REAIS usando fórmula
-     *    de Haversine entre as coordenadas do paciente e das UPAs
-     *    (função haversine() em otimizador_genetico.py linha 82-90)
-     *
-     * 6. Retorna a melhor UPAE baseada em:
-     *    - Distância real calculada
-     *    - Tempo de espera real da UPAE
-     *    - Probabilidade de não comparecimento (baseada na distância)
-     *    - Qualidade do transporte público
-     *
-     * NÃO HÁ DADOS MOCKADOS. Todos os cálculos usam:
-     * - Endereço real do paciente (geocodificado)
-     * - Endereços reais das UPAs (geocodificados)
-     * - Distâncias geográficas reais (Haversine)
-     * - Tempos de espera configurados por UPAE (config.js)
-     *
-     * Validação: Se não for possível geocodificar, o sistema LANÇA ERRO
-     * e não permite continuar (linhas 15-17 e 34-36 abaixo)
-     * ============================================================
-     */
-
-    // 1. Preparar Payload - SEM FALLBACKS
-    // Todas as coordenadas devem ser reais, obtidas via geocodificação
-
     const upaesPayload = especialistasDisponiveis.map(u => {
       if (!u.lat || !u.lon) {
-        throw new Error(`UPAE ${u.nome} não possui coordenadas válidas. Geocodificação necessária.`);
+        throw new Error(`UPAE ${u.nome} não possui coordenadas válidas.`);
       }
 
       return {
@@ -73,22 +25,15 @@ class OtimizadorAlocacao {
       };
     });
 
-    // Validar coordenadas do paciente
     if (!paciente.lat || !paciente.lon) {
-      throw new Error('Não foi possível geocodificar o endereço do paciente. Verifique se o endereço está correto.');
+      throw new Error('Não foi possível geocodificar o endereço do paciente.');
     }
 
-    const pacientePayload = {
-      ...paciente,
-      lat: paciente.lat,
-      lon: paciente.lon
-    };
+    const pacientePayload = { ...paciente, lat: paciente.lat, lon: paciente.lon };
 
     try {
-      // 2. Chamada à API com Timeout
-      // O Controller AbortSignal garante que não fique carregando infinitamente
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const response = await fetch(this.apiUrl, {
         method: 'POST',
@@ -112,47 +57,22 @@ class OtimizadorAlocacao {
         throw new Error(dados.mensagem || 'Otimização falhou no servidor.');
       }
 
-      // Adaptar resposta da API para o formato esperado pelo resultado.html
       return this.adaptarRespostaGA(dados, paciente);
 
     } catch (error) {
       console.error('Erro crítico na otimização:', error);
-      
-      // Tratamento de erro específico
+
       if (error.name === 'AbortError') {
-        throw new Error('O servidor de otimização demorou muito para responder. Tente novamente.');
+        throw new Error('O servidor de otimização demorou muito para responder.');
       } else if (error.message.includes('Failed to fetch')) {
-        throw new Error('Não foi possível conectar ao servidor de Inteligência Artificial. Verifique se a API Python está rodando.');
+        throw new Error('Não foi possível conectar ao servidor de IA.');
       }
-      
-      throw error; // Repassa erro para o app.js resetar o botão
+
+      throw error;
     }
   }
 
   adaptarRespostaGA(dados, paciente) {
-    /**
-     * Adapta a resposta da API do algoritmo genético para o formato
-     * esperado pelo resultado.html
-     *
-     * Formato da API:
-     * {
-     *   sucesso: true,
-     *   melhor_opcao: { upae: {...}, distancia_km, prob_noshow, tempo_espera_dias, score },
-     *   alternativas: [{ upae: {...}, distancia_km, ... }, ...]
-     * }
-     *
-     * Formato esperado:
-     * {
-     *   sucesso: true,
-     *   paciente: { nome, cpf, idade, sexo, especialidade, endereco },
-     *   melhorOpcao: {
-     *     especialista: { unidade, municipio, endereco, id },
-     *     score: 0.85,
-     *     detalhes: { distancia, tempoEspera, custo, probabilidadeNoShow, ... }
-     *   },
-     *   alternativas: [...]
-     * }
-     */
 
     const formatarOpcao = (opcao) => {
       const upae = opcao.upae;
@@ -196,33 +116,22 @@ class OtimizadorAlocacao {
   }
 
   calcularCustoTransporte(distanciaKm) {
-    // Tarifa de ônibus RMR: R$ 4,30
-    // Estima embarques baseado na distância
-    const transferencias = this.estimarTransferencias(distanciaKm);
-    return transferencias * 4.30;
+    return this.estimarTransferencias(distanciaKm) * 4.30;
   }
 
   estimarTempoViagem(distanciaKm) {
-    // Velocidade média de ônibus urbano: ~20 km/h
-    const horas = distanciaKm / 20;
-    const minutos = Math.round(horas * 60);
-
-    if (minutos < 60) {
-      return `${minutos} min`;
-    } else {
-      const h = Math.floor(minutos / 60);
-      const m = minutos % 60;
-      return `${h}h${m > 0 ? m + 'min' : ''}`;
-    }
+    const minutos = Math.round((distanciaKm / 20) * 60);
+    if (minutos < 60) return `${minutos} min`;
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    return `${h}h${m > 0 ? m + 'min' : ''}`;
   }
 
   estimarTransferencias(distanciaKm) {
-    // Estimativa conservadora baseada na distância
     if (distanciaKm < 10) return 1;
     if (distanciaKm < 20) return 2;
     return 3;
   }
 }
 
-// Exportar instância
 const otimizador = new OtimizadorAlocacao();
