@@ -81,9 +81,13 @@ def otimizar():
         return jsonify(resultado)
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"\n❌ ERRO NA OTIMIZAÇÃO:\n{error_details}")
         return jsonify({
             'sucesso': False,
-            'erro': str(e)
+            'erro': str(e),
+            'detalhes': error_details
         }), 500
 
 @app.route('/api/otimizar-lote', methods=['POST'])
@@ -186,9 +190,13 @@ def otimizar_lote():
         })
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"\n❌ ERRO NA OTIMIZAÇÃO LOTE:\n{error_details}")
         return jsonify({
             'sucesso': False,
-            'erro': str(e)
+            'erro': str(e),
+            'detalhes': error_details
         }), 500
 
 @app.route('/health', methods=['GET'])

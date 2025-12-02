@@ -2,7 +2,11 @@
 # User Data Script para configurar servidor web UPAE + Backend Python API
 # Este script é executado automaticamente quando a instância EC2 inicia
 
-set -e
+# Log output para debugging
+exec > >(tee /var/log/upae-setup.log)
+exec 2>&1
+
+echo "Iniciando configuração UPAE em $(date)"
 
 # Atualizar sistema
 dnf update -y
@@ -121,8 +125,7 @@ fi
 
 # Instalar dependências Python
 cd /opt/upae-api
-pip3 install --upgrade pip
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt || echo "Erro ao instalar dependências Python, continuando..."
 
 # Criar usuário para rodar a API (segurança)
 useradd -r -s /bin/false upae-api || true
@@ -211,7 +214,7 @@ server {
 
     # Proxy para API Python (Backend)
     location /api/ {
-        proxy_pass http://upae_api/api/;
+        proxy_pass http://upae_api/;
         proxy_http_version 1.1;
 
         # Headers

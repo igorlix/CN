@@ -38,6 +38,19 @@
                 <p class="text-gray-600 text-sm mt-2">Sistema de Alocação de Pacientes Otimizado</p>
             </div>
 
+            <!-- Banner de Simulação -->
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="h-5 w-5 text-amber-500 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <h3 class="text-sm font-semibold text-amber-800">Ambiente de Simulação</h3>
+                        <p class="text-xs text-amber-700 mt-1">Os campos estão pré-preenchidos com dados fictícios para testes. Basta clicar em "Acessar Sistema".</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Formulário -->
             <form id="login-form" class="space-y-5">
 
@@ -57,7 +70,8 @@
                             id="email"
                             name="email"
                             class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                            placeholder="seu.email@saude.pe.gov.br"
+                            placeholder="admin@admin.com"
+                            value="admin@admin.com"
                             required
                         >
                     </div>
@@ -80,6 +94,7 @@
                             name="senha"
                             class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                             placeholder="••••••••"
+                            value="admin"
                             required
                         >
                     </div>
@@ -118,10 +133,24 @@
 
             </form>
 
+            <!-- Credenciais de Teste -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                <h4 class="text-xs font-semibold text-blue-800 mb-2 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                    </svg>
+                    Credenciais de Teste
+                </h4>
+                <div class="space-y-1 text-xs text-blue-700 font-mono">
+                    <p><span class="font-bold">Email:</span> admin@admin.com</p>
+                    <p><span class="font-bold">Senha:</span> admin</p>
+                </div>
+            </div>
+
             <!-- Rodapé -->
             <div class="text-center text-xs text-gray-500 pt-4 border-t">
                 <p>Secretaria de Saúde do Estado de Pernambuco</p>
-                <p class="mt-1">Sistema protegido por autenticação</p>
+                <p class="mt-1">Sistema de Demonstração - Dados Simulados</p>
             </div>
 
         </div>
@@ -140,7 +169,7 @@
 
     <!-- Scripts -->
     <script>
-        // Configuração
+        // Configuração - Credenciais MOCK para testes
         const CREDENTIALS = {
             email: 'admin@admin.com',
             senha: 'admin'
@@ -168,7 +197,7 @@
             const senha = document.getElementById('senha').value;
             const lembrar = document.getElementById('lembrar').checked;
 
-            // Validação
+            // Validação de credenciais
             if (email === CREDENTIALS.email && senha === CREDENTIALS.senha) {
                 // Salvar sessão
                 sessionStorage.setItem('authenticated', 'true');
