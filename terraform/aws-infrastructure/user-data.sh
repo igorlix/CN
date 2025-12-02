@@ -2,7 +2,11 @@
 # User Data Script para configurar servidor web UPAE + Backend Python API
 # Este script é executado automaticamente quando a instância EC2 inicia
 
-set -e
+# Log output para debugging
+exec > >(tee /var/log/upae-setup.log)
+exec 2>&1
+
+echo "Iniciando configuração UPAE em $(date)"
 
 # Atualizar sistema
 dnf update -y
@@ -121,8 +125,7 @@ fi
 
 # Instalar dependências Python
 cd /opt/upae-api
-pip3 install --upgrade pip
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt || echo "Erro ao instalar dependências Python, continuando..."
 
 # Criar usuário para rodar a API (segurança)
 useradd -r -s /bin/false upae-api || true
@@ -211,7 +214,7 @@ server {
 
     # Proxy para API Python (Backend)
     location /api/ {
-        proxy_pass http://upae_api/api/;
+        proxy_pass http://upae_api;
         proxy_http_version 1.1;
 
         # Headers
@@ -243,10 +246,24 @@ server {
 
         # CORS para arquivos estáticos
         add_header 'Access-Control-Allow-Origin' '*' always;
+
+        # Desabilitar cache para HTML (sempre buscar versão mais recente)
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 
-    # Cache para assets estáticos
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+    # Desabilitar cache para JS e CSS (desenvolvimento)
+    location ~* \.(js|css)$ {
+        root /var/www/upae;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    # Cache para imagens e fontes apenas
+    location ~* \.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {
         root /var/www/upae;
         expires 1y;
         add_header Cache-Control "public, immutable";

@@ -11,7 +11,7 @@ const APP_CONFIG = {
     MUNICIPIOS: '/api/municipios',
     OTIMIZACAO: '/api/otimizacao',
     TRANSPORTE: '/api/transporte',
-    OTIMIZADOR_GA: 'http://localhost:5000/api/otimizar'
+    OTIMIZADOR_GA: '/api/otimizar'
   },
 
   // Configuração do Algoritmo

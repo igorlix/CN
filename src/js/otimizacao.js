@@ -1,6 +1,16 @@
 class OtimizadorAlocacao {
   constructor() {
-    this.apiUrl = APP_CONFIG.API.OTIMIZADOR_GA || 'http://localhost:5000/api/otimizar';
+    // Se estiver rodando localmente (file://), usar localhost:5000
+    // Se estiver em produção (http://), usar caminho relativo
+    const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (isLocal && APP_CONFIG.API.OTIMIZADOR_GA.startsWith('/')) {
+      this.apiUrl = 'http://localhost:5000' + APP_CONFIG.API.OTIMIZADOR_GA;
+    } else {
+      this.apiUrl = APP_CONFIG.API.OTIMIZADOR_GA || 'http://localhost:5000/api/otimizar';
+    }
+
+    console.log(`API URL configurada: ${this.apiUrl}`);
   }
 
   async encontrarMelhorAlocacao(paciente, especialistasDisponiveis) {
